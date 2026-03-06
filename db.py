@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import os
 
 # sends the data fetched to Railway Postgres
