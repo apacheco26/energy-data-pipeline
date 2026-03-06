@@ -33,5 +33,5 @@ def save_to_jsonb(df, table_name, engine):
             """), {"data": json.dumps(record)})
         conn.commit()
     print(f"{table_name} saved as JSONB")
-EOF
+
 
