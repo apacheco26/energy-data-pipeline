@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import time
 import os
-from db import engine
+from db import engine, save_to_jsonb
 
 # for API help --> https://www.eia.gov/opendata/documentation/APIv2.1.0.pdf 
 api_key = os.environ["EIA_API_KEY"]
@@ -200,5 +200,6 @@ for dataset in url_info:
         all_rows.append(df_state)
 
     df_final = pd.concat(all_rows, ignore_index=True)
-    df_final.to_csv(dataset["output"], index=False)
-    print(f"{dataset['label']} saved — {len(df_final)} rows = {dataset['output']}")
+    table_name = dataset["label"].lower()
+    df_final.to_sql(table_name, engine, if_exists="replace", index=False)
+    print(f"{dataset['label']} saved — {len(df_final)} rows ✅")
