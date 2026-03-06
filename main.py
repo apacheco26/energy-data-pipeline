@@ -6,3 +6,4 @@ import pvgis_pipeline
 # commented out for now
 # import nrel_pipeline
 
+import noaa_pipeline
