@@ -8,48 +8,50 @@ from db import engine, save_to_jsonb
 api_key = os.environ["EIA_API_KEY"]
 
 
-def fetch_eia_data(url, label):
-    """Function to collect all values max on EIA website it 5000"""
-
-    all_data = []
+# edit to send to table in chunks 
+# data was getting too large to store in memory
+def fetch_eia_data(url, label, table_name):
+    """Fetch and save in chunks to avoid memory issues"""
     offset = 0
-
-    # website unique fetch length
     length = 5000
+    first_chunk = True
 
     while True:
-        count_url=f"{url}&offset={offset}&length={length}"
-        response=requests.get(count_url)
+        count_url = f"{url}&offset={offset}&length={length}"
+        # cnnect to url
+        response = requests.get(count_url)
+        data = response.json()
 
-
-        try:
-            data=response.json()
-        except Exception as e:
-            print(f"JSON error on {label} at offset {offset}: {e}")
-            print(f"Raw response: {response.text[:200]}")
-            break
-
-
-        # if error
+        # ran into issues before 
+        #fixed them...just in case
         if "error" in data:
             print(f"Error on {label}: {data['error']}")
             break
-
+        
         rows = data["response"]["data"]
         total = int(data["response"]["total"])
 
-        all_data.extend(rows)
-        print(f"{label} - fetched {len(all_data)} of {total} rows")
+        # save chunk directly to Postgres
+        df_chunk = pd.DataFrame(rows)
 
-        # once we get everything
-        if len(all_data) >= total:
+        # when 5000 hit change to append 
+        # save after 
+        in_or_out = "replace" if first_chunk else "append"
+
+        # makes use of mode
+        df_chunk.to_sql(table_name, engine, if_exists=in_or_out, index=False)
+        first_chunk = False
+
+        offset += len(rows)
+        print(f"{label} - saved {offset} of {total} rows")
+
+        if offset >= total:
             break
-        
-        offset += length
 
         time.sleep(0.5)
 
-    return pd.DataFrame(all_data)
+    print(f"{table_name} saved! ")
+
 
 # Electricity produced by fuel type per year
 gen_url = (
@@ -113,30 +115,21 @@ co2_url = (
     )
 
 print("Electricity produced by fuel type per year....")
-df_generation = fetch_eia_data(gen_url, "Generation")
-print(f"Generation rows : {len(df_generation)}")
-
-df_generation.to_sql("eia_generation", engine, if_exists="replace", index=False)
+fetch_eia_data(gen_url, "Generation", "eia_generation")
 
 print("capacity by fuel type per year")
-df_capacity = fetch_eia_data(cap_url, "Capacity")
-print(f"Capacity rows: {len(df_capacity)}")
-df_capacity.to_sql("eia_capacity", engine, if_exists="replace", index=False)
+fetch_eia_data(cap_url, "Capacity", "eia_capacity")
 
 print("Retail sales")
-df_sales = fetch_eia_data(sales_url, "Retail Sales")
-print(f"Sale rows: {len(df_sales)}")
-df_sales.to_sql("eia_sales", engine, if_exists="replace", index=False)
+fetch_eia_data(sales_url, "Retail Sales", "eia_sales")
 
 print("Total Energy...")
-df_total = fetch_eia_data(total_url, "Total Energy")
-print(f"({len(df_total)} rows)")
-df_total.to_sql("eia_total_energy", engine, if_exists="replace", index=False)
+fetch_eia_data(total_url, "Total Energy", "eia_total_energy")
 
 print("CO2 Emissions...")
-df_co2 = fetch_eia_data(co2_url, "CO2 Emissions")
-print(f"(co2 {len(df_co2)} rows)")
-df_co2.to_sql("eia_co2_emissions", engine, if_exists="replace", index=False)
+fetch_eia_data(co2_url, "CO2 Emissions", "eia_co2_emissions")
+
+
 
 # fetch required different setup for below
 
@@ -202,4 +195,4 @@ for dataset in url_info:
     df_final = pd.concat(all_rows, ignore_index=True)
     table_name = dataset["label"].lower()
     df_final.to_sql(table_name, engine, if_exists="replace", index=False)
-    print(f"{dataset['label']} saved — {len(df_final)} rows ✅")
+    print(f"{dataset['label']} saved — {len(df_final)} rows")
