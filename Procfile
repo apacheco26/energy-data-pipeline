@@ -1,1 +1,1 @@
-worker: python eia_pipeline.py
+worker: python main.py
