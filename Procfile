@@ -1,1 +1,1 @@
-worker: python api_script.py
+worker: python eia_pipeline.py
