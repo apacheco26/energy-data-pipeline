@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, text
 import os
+import json
 
 # sends the data fetched to Railway Postgres
 # more direct with line code to_sql()
@@ -7,10 +8,30 @@ import os
 engine = create_engine(os.environ["DATABASE_URL"])
 
 # test connection
-try: 
+try:
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
     print("Database connected successful.")
 except Exception as e:
     print(f"Database connection failed; {e}")
+
+# reusable function to save any DataFrame to Railway Postgres as JSONB
+def save_to_jsonb(df, table_name, engine):
+    with engine.connect() as conn:
+        conn.execute(text(f"""
+            CREATE TABLE IF NOT EXISTS {table_name} (
+                id SERIAL PRIMARY KEY,
+                data JSONB,
+                inserted_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.commit()
+        records = df.to_dict(orient="records")
+        for record in records:
+            conn.execute(text(f"""
+                INSERT INTO {table_name} (data) VALUES (:data)
+            """), {"data": json.dumps(record)})
+        conn.commit()
+    print(f"{table_name} saved as JSONB")
+EOF
 
