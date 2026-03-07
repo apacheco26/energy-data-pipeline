@@ -22,6 +22,15 @@ def fetch_eia_data(url, label, table_name):
         response = requests.get(count_url)
         data = response.json()
 
+        # api kept crashing when the fetch came back empty
+        # fix to stop that
+        # response.text = api sent data
+        # strip() check if empty 
+        if not response.text.strip():
+            print(f"Empty response on {label} at offset {offset}, retrying...")
+            time.sleep(2)
+            continue
+
         # ran into issues before 
         #fixed them...just in case
         if "error" in data:
@@ -52,7 +61,19 @@ def fetch_eia_data(url, label, table_name):
 
     print(f"{table_name} saved! ")
 
+# many restarts to avoid starting form the first table
+# create function to check if the table exist 
+# if all data is there move to the next table
 
+def table_exists_with_data(table_name):
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+            count = result.scalar()
+            return count > 0
+    except:
+        return False
+    
 # Electricity produced by fuel type per year
 gen_url = (
     f"https://api.eia.gov/v2/electricity/electric-power-operational-data/data"
@@ -114,22 +135,37 @@ co2_url = (
     f"&sort[0][direction]=asc"
     )
 
+# added a if not statement to help with data being recreated after each issue
+
 print("Electricity produced by fuel type per year....")
-fetch_eia_data(gen_url, "Generation", "eia_generation")
+if not table_exists_with_data("eia_generation"):
+    fetch_eia_data(gen_url, "Generation", "eia_generation")
+else:
+    print("eia table already created")
 
 print("capacity by fuel type per year")
-fetch_eia_data(cap_url, "Capacity", "eia_capacity")
+if not table_exists_with_data("eia_capacity"):
+    fetch_eia_data(cap_url, "Capacity", "eia_capacity")
+else:
+    print("capacity table already created")
 
 print("Retail sales")
-fetch_eia_data(sales_url, "Retail Sales", "eia_sales")
+if not table_exists_with_data("eia_sales"):
+    fetch_eia_data(sales_url, "Retail Sales", "eia_sales")
+else:
+    print("Retail sales table already created")
 
 print("Total Energy...")
-fetch_eia_data(total_url, "Total Energy", "eia_total_energy")
+if not table_exists_with_data("eia_total_energy"):
+    fetch_eia_data(total_url, "Total Energy", "eia_total_energy")
+else:
+    print("total energy table already created")
 
 print("CO2 Emissions...")
-fetch_eia_data(co2_url, "CO2 Emissions", "eia_co2_emissions")
-
-
+if not table_exists_with_data("eia_co2_emissions"):
+    fetch_eia_data(co2_url, "CO2 Emissions", "eia_co2_emissions")
+else:
+    print("co2 emission table already created")
 
 # fetch required different setup for below
 
