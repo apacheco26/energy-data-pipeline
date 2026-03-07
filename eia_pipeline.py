@@ -56,6 +56,15 @@ def fetch_eia_data(url, label, table_name):
         # save chunk directly to Postgres
         df_chunk = pd.DataFrame(rows)
 
+        # need to avg capacity in python
+        # the fetching and saving to table is too large to do in memory
+        if table_name == "eia_capacity":
+            df_chunk["year"] = df_chunk["period"].str[:4]
+            df_chunk = df_chunk.groupby(
+                ["year", "stateid", "stateName", "technology", "energy_source_code"],
+                as_index=False
+            )["nameplate-capacity-mw"].sum()
+            
         # when 5000 hit change to append 
         # save after 
         in_or_out = "replace" if first_chunk else "append"
@@ -105,7 +114,7 @@ cap_url = (
     f"https://api.eia.gov/v2/electricity/operating-generator-capacity/data"
     f"?api_key={api_key}"
     f"&data[]=nameplate-capacity-mw"
-    f"&frequency=annual"
+    f"&frequency=monthly"
     f"&start=2000"
     f"&end=2023"
     f"&sort[0][column]=period"
