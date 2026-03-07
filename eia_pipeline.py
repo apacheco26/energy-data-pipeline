@@ -30,6 +30,17 @@ def fetch_eia_data(url, label, table_name):
             print(f"Empty response on {label} at offset {offset}, retrying...")
             time.sleep(2)
             continue
+        
+        # issue above only check empty
+        # the issue was still presistent
+        # not check 'Bad JSON' check
+        try:
+            data = response.json()
+        except Exception as e:
+            print(f"JSON error on {label} at offset {offset}: {e}")
+            print(f"Raw response: {response.text[:200]}")
+            time.sleep(2)
+            continue
 
         # ran into issues before 
         #fixed them...just in case
