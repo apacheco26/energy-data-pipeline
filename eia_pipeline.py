@@ -20,7 +20,7 @@ def fetch_eia_data(url, label, table_name):
         count_url = f"{url}&offset={offset}&length={length}"
         # cnnect to url
         response = requests.get(count_url)
-        data = response.json()
+
 
         # api kept crashing when the fetch came back empty
         # fix to stop that
@@ -36,6 +36,7 @@ def fetch_eia_data(url, label, table_name):
         # not check 'Bad JSON' check
         try:
             data = response.json()
+    
         except Exception as e:
             print(f"JSON error on {label} at offset {offset}: {e}")
             print(f"Raw response: {response.text[:200]}")
