@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import time
 import os
+from sqlalchemy import text
 from db import engine, save_to_jsonb
 
 # for API help --> https://www.eia.gov/opendata/documentation/APIv2.1.0.pdf 
@@ -104,7 +105,7 @@ cap_url = (
     f"https://api.eia.gov/v2/electricity/operating-generator-capacity/data"
     f"?api_key={api_key}"
     f"&data[]=nameplate-capacity-mw"
-    f"&frequency=monthly"
+    f"&frequency=annual"
     f"&start=2000"
     f"&end=2023"
     f"&sort[0][column]=period"
@@ -189,42 +190,39 @@ states = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
           ]
 
 url_info = [
-        {
+    {
         "label": "SEDS",
         "url": "https://api.eia.gov/v2/seds/data",
         "data_col": "value",
         "facet": "stateId",
-        "facet_prefix": "",
-        "output": "eia_seds.csv"},
-
-        {
+        "facet_prefix": ""
+    },
+    {
         "label": "NaturalGas",
         "url": "https://api.eia.gov/v2/natural-gas/cons/sum/data",
         "data_col": "value",
         "facet": "duoarea",
-        "facet_prefix": "S",
-        "output": "eia_natural_gas.csv"},
-        
-        {
+        "facet_prefix": "S"
+    },
+    {
         "label": "Coal",
         "url": "https://api.eia.gov/v2/coal/consumption-and-quality/data",
         "data_col": "consumption",
         "facet": "location",
-        "facet_prefix": "",
-        "output": "eia_coal.csv"}
-        ]
+        "facet_prefix": ""
+    }
+    ]
 
 for dataset in url_info:
     print(f"\n{'='*50}")
     print(f"Fetching {dataset['label']}...")
     print(f"{'='*50}")
 
-    all_rows = []
+    table_name = dataset["label"].lower()
 
     for state in states:
         facet_value = dataset["facet_prefix"] + state
         print(f"{dataset['label']} — {state}")
-
         url = (
             f"{dataset['url']}"
             f"?api_key={api_key}"
@@ -235,12 +233,7 @@ for dataset in url_info:
             f"&end=2023"
             f"&sort[0][column]=period"
             f"&sort[0][direction]=asc"
-            )
+        )
+        fetch_eia_data(url, f"{dataset['label']}-{state}", table_name)
 
-        df_state = fetch_eia_data(url, f"{dataset['label']}-{state}")
-        all_rows.append(df_state)
-
-    df_final = pd.concat(all_rows, ignore_index=True)
-    table_name = dataset["label"].lower()
-    df_final.to_sql(table_name, engine, if_exists="replace", index=False)
-    print(f"{dataset['label']} saved — {len(df_final)} rows")
+    print(f"{dataset['label']} saved!")
