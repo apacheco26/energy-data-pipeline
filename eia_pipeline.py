@@ -166,12 +166,6 @@ if not table_exists_with_data("eia_generation"):
 else:
     print("eia table already created")
 
-print("capacity by fuel type per year")
-if not table_exists_with_data("eia_capacity"):
-    fetch_eia_data(cap_url, "Capacity", "eia_capacity")
-else:
-    print("capacity table already created")
-
 print("Retail sales")
 if not table_exists_with_data("eia_sales"):
     fetch_eia_data(sales_url, "Retail Sales", "eia_sales")
@@ -245,5 +239,11 @@ for dataset in url_info:
             f"&sort[0][direction]=asc"
         )
         fetch_eia_data(url, f"{dataset['label']}-{state}", table_name)
+    
+print("capacity by fuel type per year")
+if not table_exists_with_data("eia_capacity"):
+    fetch_eia_data(cap_url, "Capacity", "eia_capacity")
+else:
+    print("capacity table already created")
 
     print(f"{dataset['label']} saved!")
