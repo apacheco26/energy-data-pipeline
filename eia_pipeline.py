@@ -60,11 +60,12 @@ def fetch_eia_data(url, label, table_name):
         # the fetching and saving to table is too large to do in memory
         if table_name == "eia_capacity":
             df_chunk["year"] = df_chunk["period"].str[:4]
+            df_chunk["nameplate-capacity-mw"] = pd.to_numeric(df_chunk["nameplate-capacity-mw"], errors="coerce").fillna(0)
             df_chunk = df_chunk.groupby(
                 ["year", "stateid", "stateName", "technology", "energy_source_code"],
                 as_index=False
             )["nameplate-capacity-mw"].sum()
-            
+
         # when 5000 hit change to append 
         # save after 
         in_or_out = "replace" if first_chunk else "append"
