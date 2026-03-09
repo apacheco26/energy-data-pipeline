@@ -3,7 +3,7 @@ import pandas as pd
 import io
 import os
 import json
-from db import engine, save_to_jsonb
+from db import engine
 
 state_pop_key = os.environ["STATE_POP_KEY"]
 
@@ -88,5 +88,5 @@ census_pop = census_pop.sort_values(["state", "year"]).reset_index(drop=True)
 print(census_pop.shape)
 print(census_pop.head())
 
-save_to_jsonb(census_pop, "census_population", engine)
+census_pop.to_sql("census_population", engine, if_exists="replace", index=False)
 print("census_population saved!")

@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 import os
-from db import engine, save_to_jsonb
+from db import engine
 
 # check connection of API 
 bea_key = os.environ["BEA_KEY"]
@@ -47,5 +47,5 @@ bea_gdp = pd.DataFrame(rows_boa)
 print(bea_gdp.shape)
 print(bea_gdp.head())
 
-save_to_jsonb(bea_gdp,"bea_gdp", engine)
+bea_gdp.to_sql("bea_gdp", engine, if_exists="replace", index=False)
 print("Saved!")

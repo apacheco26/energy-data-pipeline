@@ -4,7 +4,7 @@ import io
 import os
 import json
 import time
-from db import engine, save_to_jsonb
+from db import engine
 
 api_key_NREL = os.environ["NREL_API_KEY"]
 email_key = os.environ["EMAIL_KEY"]
@@ -68,5 +68,5 @@ for state, (lat, lon) in states_coords.items():
         time.sleep(1)
 
 df_nsrdb = pd.DataFrame(nsrdb_rows)
-save_to_jsonb(df_nsrdb,"nsrdb_solar_annual", engine)
+df_nsrdb.to_sql("nsrdb_solar", engine, if_exists="replace", index=False)
 print(f"Done! {df_nsrdb.shape}")

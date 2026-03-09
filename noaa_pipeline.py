@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import time
 import os
-from db import engine, save_to_jsonb
+from db import engine
 
 # for API help --> https://www.ncdc.noaa.gov/cdo-web/webservices/v2 
 noaa_token = os.environ["noaa_token"]
@@ -101,7 +101,6 @@ for datatype in datatypes:
 
 # combine everything into one dataframe
 df_final = pd.concat(all_results, ignore_index=True)
-save_to_jsonb(df_final,"noaa_climate", engine)
+df_final.to_sql("noaa_climate", engine, if_exists="replace", index=False)
 print(f"Shape: {df_final.shape}")
-print(f"Preview:")
 print("noaa_climate saved!")

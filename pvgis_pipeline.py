@@ -4,7 +4,7 @@ import io
 import os
 import json
 import time
-from db import engine, save_to_jsonb
+from db import engine
 
 target_countries = [
     "China", "Germany", "India", "Brazil",
@@ -27,7 +27,7 @@ country_coords = {
     "Canada": (56.1304, -106.3468)
     }
 
-pvgis_rows = []
+annual_rows = []
 
 for country, (lat, lon) in country_coords.items():
     for year in range(2005, 2024):
@@ -46,13 +46,26 @@ for country, (lat, lon) in country_coords.items():
             response = requests.get(url)
             data = response.json()
             df = pd.DataFrame(data["outputs"]["hourly"])
-            df["country"] = country
-            df["year"] = year
-            pvgis_rows.append(df[["country", "year", "time", "Gb(i)", "Gd(i)", "Gr(i)"]])
+            
+            # convert to numeric
+            for col in ["Gb(i)", "Gd(i)", "Gr(i)"]:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
+            # aggregate to single annual average rows
+            avg_row = {
+                "country": country,
+                "year": year,
+                "ghi": (df["Gb(i)"] + df["Gd(i)"] + df["Gr(i)"]).mean(),
+                "direct_avg": df["Gb(i)"].mean(),
+                "diffuse_avg": df["Gd(i)"].mean()
+            }          
+            annual_rows.append(avg_row)
+
+                               
+            
         except Exception as e:
             print(f"ERROR {country} {year}: {e}")
         time.sleep(1)
 
-df_pvgis = pd.concat(pvgis_rows, ignore_index=True)
-save_to_jsonb(df_pvgis,"pvgis_solar_raw",engine)
-print(f"Done! {df_pvgis.shape}")
+df_pvgis = pd.DataFrame(annual_rows)
+df_pvgis.to_sql("pvgis_solar", engine, if_exists="replace", index=False)
