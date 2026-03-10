@@ -1,7 +1,8 @@
 import requests
 import pandas as pd
 import os
-from db import engine
+from db import engine, check_data_exists
+
 
 # check connection of API 
 bea_key = os.environ["BEA_KEY"]

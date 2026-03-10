@@ -4,7 +4,7 @@ import io
 import os
 import json
 import time
-from db import engine
+from db import engine, check_data_exists
 
 api_key_NREL = os.environ["NREL_API_KEY"]
 email_key = os.environ["EMAIL_KEY"]

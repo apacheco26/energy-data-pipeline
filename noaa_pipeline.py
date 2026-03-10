@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import time
 import os
-from db import engine
+from db import engine, check_data_exists
 
 # for API help --> https://www.ncdc.noaa.gov/cdo-web/webservices/v2 
 noaa_token = os.environ["noaa_token"]

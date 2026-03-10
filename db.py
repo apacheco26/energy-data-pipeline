@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, text
 import os
 import json
 
+
 # sends the data fetched to Railway Postgres
 # more direct with line code to_sql()
 
@@ -14,6 +15,16 @@ try:
     print("Database connected successful.")
 except Exception as e:
     print(f"Database connection failed; {e}")
+
+def check_data_exists(table_name):
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+            count = result.scalar()
+            return count > 0
+    except:
+        return False
+    
 
 # reusable function to save any DataFrame to Railway Postgres as JSONB
 # no longer save to jsonb, but keeping the function in case we want to save 

@@ -3,7 +3,7 @@ import pandas as pd
 import time
 import os
 from sqlalchemy import text
-from db import engine, save_to_jsonb
+from db import engine, save_to_jsonb, check_data_exists
 
 # for API help --> https://www.eia.gov/opendata/documentation/APIv2.1.0.pdf 
 api_key = os.environ["EIA_API_KEY"]

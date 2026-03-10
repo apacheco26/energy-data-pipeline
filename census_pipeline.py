@@ -3,7 +3,7 @@ import pandas as pd
 import io
 import os
 import json
-from db import engine
+from db import engine, check_data_exists
 
 state_pop_key = os.environ["STATE_POP_KEY"]
 

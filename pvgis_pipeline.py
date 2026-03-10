@@ -4,7 +4,7 @@ import io
 import os
 import json
 import time
-from db import engine
+from db import engine, check_data_exists
 
 target_countries = [
     "China", "Germany", "India", "Brazil",

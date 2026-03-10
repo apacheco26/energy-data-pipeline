@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import time
 import os
-from db import engine, save_to_jsonb
+from db import engine, save_to_jsonb, ceck_data_exists
 
 # API Documentation --> https://developer.nrel.gov
 
