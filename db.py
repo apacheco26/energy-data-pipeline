@@ -16,6 +16,8 @@ except Exception as e:
     print(f"Database connection failed; {e}")
 
 # reusable function to save any DataFrame to Railway Postgres as JSONB
+# no longer save to jsonb, but keeping the function in case we want to save 
+# any raw data in the future
 def save_to_jsonb(df, table_name, engine):
     with engine.connect() as conn:
         conn.execute(text(f"""
@@ -33,5 +35,3 @@ def save_to_jsonb(df, table_name, engine):
             """), {"data": json.dumps(record)})
         conn.commit()
     print(f"{table_name} saved as JSONB")
-
-
