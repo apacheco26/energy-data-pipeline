@@ -12,7 +12,7 @@ engine = create_engine(os.environ["DATABASE_URL"])
 try:
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
-    print("Database connected successful.")
+        print("Database connected successful.")
 except Exception as e:
     print(f"Database connection failed; {e}")
 
@@ -24,7 +24,24 @@ def check_data_exists(table_name):
             return count > 0
     except:
         return False
-    
+
+def table_summary(table_name):
+    with engine.connect() as conn:
+        # scaler function returns a single value
+        # so insdead of row object (5030,)
+        # the request will retunr 5030
+        row_count = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}")).scalar()
+        col_count = conn.execute(text(f"""
+                                      SELECT COUNT(*) FROM information_schema.columns
+                                      WHERE table_name = '{table_name}'
+                                      """)).scaler()
+        table_size = conn.execute(text(f"""
+            SELECT pg_size_pretty(pg_total_relation_size('{table_name}'))
+        """)).scalar()
+        print(f"Table: {table_name}")
+        print(f"Rows: {row_count}")
+        print(f"Columns: {col_count}")
+        print(f"Size: {table_size}")
 
 # reusable function to save any DataFrame to Railway Postgres as JSONB
 # no longer save to jsonb, but keeping the function in case we want to save 
