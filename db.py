@@ -32,9 +32,9 @@ def table_summary(table_name):
         # the request will retunr 5030
         row_count = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}")).scalar()
         col_count = conn.execute(text(f"""
-                                      SELECT COUNT(*) FROM information_schema.columns
-                                      WHERE table_name = '{table_name}'
-                                      """)).scaler()
+            SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_name = '{table_name}'
+        """)).scalar()
         table_size = conn.execute(text(f"""
             SELECT pg_size_pretty(pg_total_relation_size('{table_name}'))
         """)).scalar()
