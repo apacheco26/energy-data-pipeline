@@ -10,14 +10,13 @@ def check_url(label, url):
         print(f"  ERROR: {label} — {e}")
 
 # API connections
-print("=== API CONNECTIONS ===")
+print("CONNECTIONS")
 check_url("BEA", "https://apps.bea.gov/api/data")
-check_url("EIA", "https://api.eia.gov/v2")
+check_url("EIA", "https://api.eia.gov/v2/electricity/electric-power-operational-data/data")
 check_url("NOAA", "https://www.ncei.noaa.gov/cdo-web/api/v2/data")
-check_url("NREL","https://developer.nrel.gov/api/nsrdb/v2")
+check_url("NREL", "https://developer.nrel.gov/api/solar/solar_resource/v1.json")
 check_url("PVGIS","https://re.jrc.ec.europa.eu/api/v5_2/seriescalc")
-check_url("OWID","https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv")
-check_url("CENSUS", "https://www2.census.gov/programs-surveys/popest/")
+check_url("CENSUS", f"https://api.census.gov/data/2019/pep/population")
 
 # table summaries
 print("\nTABLE SUMMARIES")
