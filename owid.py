@@ -1,6 +1,4 @@
 import pandas as pd
-from dotenv import load_dotenv
-load_dotenv()
 from db import engine, is_fetched, log_fetch
 
 if is_fetched("owid"):
