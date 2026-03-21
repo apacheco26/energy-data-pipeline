@@ -85,7 +85,7 @@ def fetch_eia_data(url, label, table_name, mode="replace", state = "ALL"):
 
         time.sleep(0.5)
 
-    print(f"{table_name} saved! ")
+        print(f"{table_name} saved! ")
     
 # Electricity produced by fuel type per year
 gen_url = (
@@ -218,7 +218,8 @@ for dataset in url_info:
         if is_fetched(dataset["label"], state=state):
             print(f"Skipping {dataset['label']} {state} because already fetched")
             continue
-        mode = "replace" if i == 0 else "append"
+        # check if table exists instead of using index
+        mode = "append" if check_data_exists(table_name) else "replace"
         facet_value = dataset["facet_prefix"] + state
         print(f"{dataset['label']} — {state}")
         url = (
@@ -232,7 +233,7 @@ for dataset in url_info:
             f"&sort[0][column]=period"
             f"&sort[0][direction]=asc"
         )
-        fetch_eia_data(url, f"{dataset['label']}-{state}", table_name, mode = mode, state=state)
+        fetch_eia_data(url, dataset["label"], table_name, mode=mode, state=state)
     
 print("capacity by fuel type per year")
 if not is_fetched("eia_capacity"):

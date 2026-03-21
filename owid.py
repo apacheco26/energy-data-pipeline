@@ -19,7 +19,7 @@ else:
         'wind_elec_per_capita',
         'renewables_electricity', 'renewables_share_elec',
         'greenhouse_gas_emissions', 'carbon_intensity_elec'
-    ]
+        ]
     
     # create the df
     df_owid = df[cols]

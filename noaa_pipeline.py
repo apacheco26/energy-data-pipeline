@@ -95,8 +95,6 @@ def fetch_noaa_status(state_code, fips, datatype, start, end):
     df["state"] = state_code
     return df[["state", "year", "station", "datatype", "value"]]
 
-first_write = True
-
 for datatype in datatypes:
     print(f"\n{'='*50}")
     print(f"Fetching {datatype}...")
@@ -112,9 +110,8 @@ for datatype in datatypes:
             df = fetch_noaa_status(state_code, fips, datatype, start, end)
             if not df.empty:
                 
-                mode = "replace" if first_write else "append"
+                mode = "replace" if not check_data_exists("noaa_climate") else "append"
                 df.to_sql("noaa_climate", engine, if_exists=mode, index=False)
-                first_write = False
                 
                 log_fetch("noaa", "success", state=state_code, year=chunk_year)
 

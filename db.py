@@ -51,10 +51,6 @@ def log_fetch(source, status, state="ALL", year=0):
         """), {"source": source, "state": state, "year": year, "status": status})
         conn.commit()
 
-
-
-
-
 # test connection
 try:
     with engine.connect() as conn:
