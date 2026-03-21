@@ -79,5 +79,5 @@ for state, (lat, lon) in states_coords.items():
 
 if state_rows:
     df_nsrdb = pd.DataFrame(state_rows)
-    mode = "replace" if state == list(states_coords.keys())[0] else "append"
+    mode = "replace" if not check_data_exists("nsrdb_solar") else "append"
     df_nsrdb.to_sql("nsrdb_solar", engine, if_exists=mode, index=False)
