@@ -3,7 +3,7 @@ import pandas as pd
 import time
 import os
 from sqlalchemy import text
-from db import engine, save_to_jsonb, check_data_exists
+from db import engine, check_data_exists, is_fetched, log_fetch
 
 # for API help --> https://www.eia.gov/opendata/documentation/APIv2.1.0.pdf 
 api_key = os.environ["EIA_API_KEY"]
@@ -11,8 +11,12 @@ api_key = os.environ["EIA_API_KEY"]
 
 # edit to send to table in chunks 
 # data was getting too large to store in memory
-def fetch_eia_data(url, label, table_name):
+def fetch_eia_data(url, label, table_name, mode="replace", state = "ALL"):
     """Fetch and save in chunks to avoid memory issues"""
+    
+    # limit tries
+    max_retries = 3
+    retries = 0    
     offset = 0
     length = 5000
     first_chunk = True
@@ -22,25 +26,22 @@ def fetch_eia_data(url, label, table_name):
         # cnnect to url
         response = requests.get(count_url)
 
-
-        # api kept crashing when the fetch came back empty
-        # fix to stop that
-        # response.text = api sent data
-        # strip() check if empty 
         if not response.text.strip():
-            print(f"Empty response on {label} at offset {offset}, retrying...")
+            retries  += 1
+            if retries >= max_retries:
+                log_fetch(label, "error", state=state)
+                return
+        
             time.sleep(2)
             continue
-        
-        # issue above only check empty
-        # the issue was still presistent
-        # not check 'Bad JSON' check
         try:
             data = response.json()
-    
+
         except Exception as e:
-            print(f"JSON error on {label} at offset {offset}: {e}")
-            print(f"Raw response: {response.text[:200]}")
+            retries += 1
+            if retries >= max_retries:
+                log_fetch(label, "error", state=state)
+                return
             time.sleep(2)
             continue
 
@@ -48,6 +49,7 @@ def fetch_eia_data(url, label, table_name):
         #fixed them...just in case
         if "error" in data:
             print(f"Error on {label}: {data['error']}")
+            log_fetch(label, "error", state=state)
             break
         
         rows = data["response"]["data"]
@@ -68,7 +70,7 @@ def fetch_eia_data(url, label, table_name):
 
         # when 5000 hit change to append 
         # save after 
-        in_or_out = "replace" if first_chunk else "append"
+        in_or_out = mode if first_chunk else "append"
 
         # makes use of mode
         df_chunk.to_sql(table_name, engine, if_exists=in_or_out, index=False)
@@ -78,24 +80,12 @@ def fetch_eia_data(url, label, table_name):
         print(f"{label} - saved {offset} of {total} rows")
 
         if offset >= total:
+            log_fetch(label , "success", state=state)
             break
 
         time.sleep(0.5)
 
     print(f"{table_name} saved! ")
-
-# many restarts to avoid starting form the first table
-# create function to check if the table exist 
-# if all data is there move to the next table
-
-def table_exists_with_data(table_name):
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
-            count = result.scalar()
-            return count > 0
-    except:
-        return False
     
 # Electricity produced by fuel type per year
 gen_url = (
@@ -161,25 +151,25 @@ co2_url = (
 # added a if not statement to help with data being recreated after each issue
 
 print("Electricity produced by fuel type per year....")
-if not table_exists_with_data("eia_generation"):
+if not is_fetched("eia_generation"):
     fetch_eia_data(gen_url, "Generation", "eia_generation")
 else:
     print("eia table already created")
 
 print("Retail sales")
-if not table_exists_with_data("eia_sales"):
+if not is_fetched("eia_sales"):
     fetch_eia_data(sales_url, "Retail Sales", "eia_sales")
 else:
     print("Retail sales table already created")
 
 print("Total Energy...")
-if not table_exists_with_data("eia_total_energy"):
+if not is_fetched("eia_total_energy"):
     fetch_eia_data(total_url, "Total Energy", "eia_total_energy")
 else:
     print("total energy table already created")
 
 print("CO2 Emissions...")
-if not table_exists_with_data("eia_co2_emissions"):
+if not is_fetched("eia_co2_emissions"):
     fetch_eia_data(co2_url, "CO2 Emissions", "eia_co2_emissions")
 else:
     print("co2 emission table already created")
@@ -224,7 +214,11 @@ for dataset in url_info:
 
     table_name = dataset["label"].lower()
 
-    for state in states:
+    for i, state in enumerate(states):
+        if is_fetched(dataset["label"], state=state):
+            print(f"Skipping {dataset['label']} {state} because already fetched")
+            continue
+        mode = "replace" if i == 0 else "append"
         facet_value = dataset["facet_prefix"] + state
         print(f"{dataset['label']} — {state}")
         url = (
@@ -238,12 +232,11 @@ for dataset in url_info:
             f"&sort[0][column]=period"
             f"&sort[0][direction]=asc"
         )
-        fetch_eia_data(url, f"{dataset['label']}-{state}", table_name)
+        fetch_eia_data(url, f"{dataset['label']}-{state}", table_name, mode = mode, state=state)
     
 print("capacity by fuel type per year")
-if not table_exists_with_data("eia_capacity"):
+if not is_fetched("eia_capacity"):
     fetch_eia_data(cap_url, "Capacity", "eia_capacity")
 else:
     print("capacity table already created")
 
-    print(f"{dataset['label']} saved!")

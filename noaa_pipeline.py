@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import time
 import os
-from db import engine, check_data_exists
+from db import engine, check_data_exists, is_fetched, log_fetch
 
 # for API help --> https://www.ncdc.noaa.gov/cdo-web/webservices/v2 
 noaa_token = os.environ["noaa_token"]
@@ -41,6 +41,8 @@ def fetch_noaa_status(state_code, fips, datatype, start, end):
     offset = 1
     # NOAA limit
     limit = 1000
+    chunk_year = int(start[:4])
+    
     while True:
         url = (
             f"https://www.ncei.noaa.gov/cdo-web/api/v2/data"
@@ -53,17 +55,25 @@ def fetch_noaa_status(state_code, fips, datatype, start, end):
             f"&offset={offset}"
             f"&units=standard"
             )
-
-        response = requests.get(url, headers=headers)
-        # handle errors during fetch (aka different datatypes)
-        try:
-            data = response.json()
-        except:
-            print(f"Non-JSON ERROR {state_code} {datatype} {start}")
-            break
+        max_retries = 3
+        for attempt in range(max_retries):
+            response = requests.get(url, headers=headers, timeout=30)
+            # handle errors during fetch (aka different datatypes)
+            try:
+                data = response.json()
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    print(f"Non-JSON ERROR {state_code} {datatype} {start}: {e}")
+                    log_fetch("noaa", "error", state=state_code, year=chunk_year)
+                    return pd.DataFrame()
+                time.sleep(2)
+                
         if "results" not in data:
             print(f"No results for {state_code} {datatype} {start}")
+            log_fetch("noaa", "no_data", state=state_code, year=chunk_year)
             break
+        
         
         rows = data["results"]
         total = data["metadata"]["resultset"]["count"]
@@ -85,7 +95,7 @@ def fetch_noaa_status(state_code, fips, datatype, start, end):
     df["state"] = state_code
     return df[["state", "year", "station", "datatype", "value"]]
 
-all_results = []
+first_write = True
 
 for datatype in datatypes:
     print(f"\n{'='*50}")
@@ -93,14 +103,19 @@ for datatype in datatypes:
     print(f"{'='*50}")
     for state_code, fips in states.items():
         for start, end in date_chunks:
+            chunk_year = int(start[:4])
+            if is_fetched("noaa", state=state_code, year=chunk_year):
+                print(f"  Skipping {state_code} {datatype} {start[:4]} — already fetched")
+                continue
+            
             print(f" {state_code}|{datatype}|{start[:4]}-{end[:4]}")
             df = fetch_noaa_status(state_code, fips, datatype, start, end)
             if not df.empty:
-                all_results.append(df)
-            time.sleep(0.2)
+                
+                mode = "replace" if first_write else "append"
+                df.to_sql("noaa_climate", engine, if_exists=mode, index=False)
+                first_write = False
+                
+                log_fetch("noaa", "success", state=state_code, year=chunk_year)
 
-# combine everything into one dataframe
-df_final = pd.concat(all_results, ignore_index=True)
-df_final.to_sql("noaa_climate", engine, if_exists="replace", index=False)
-print(f"Shape: {df_final.shape}")
 print("noaa_climate saved!")

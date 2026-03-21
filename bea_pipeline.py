@@ -1,10 +1,8 @@
 import requests
 import pandas as pd
 import os
-from db import engine, check_data_exists
+from db import engine, is_fetched, log_fetch
 
-
-# check connection of API 
 bea_key = os.environ["BEA_KEY"]
 
 state_fips = {
@@ -13,6 +11,7 @@ state_fips = {
     '34','35','36','37','38','39','40','41','42','44','45','46','47','48','49',
     '50','51','53','54','55','56'
     }
+
 
 bea_url = (
     f"https://apps.bea.gov/api/data"
@@ -24,29 +23,57 @@ bea_url = (
     f"&GeoFips=STATE"
     f"&Year=ALL"
     f"&ResultFormat=JSON"
-    )
+)
 
+if is_fetched("bea"):
+    print("bea_gdp already fetched — skipping")
+else:
+    # fetch
+    try:
+        response = requests.get(bea_url, timeout=30)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"ERROR fetching BEA data: {e}")
+        log_fetch("bea", "error")
+        exit()
 
-response = requests.get(bea_url)
-data = response.json()
+    # parse
+    try:
+        data = response.json()
+        records = data["BEAAPI"]["Results"]["Data"]
+    except Exception as e:
+        print(f"ERROR parsing BEA response: {e}")
+        log_fetch("bea", "error")
+        exit()
 
-records = data["BEAAPI"]["Results"]["Data"]
+    # filter & clean
+    rows_bea = []
+    for r in records:
+        fips_prefix = r["GeoFips"][:2]
+        year = int(r["TimePeriod"])
+        if fips_prefix in state_fips and 2000 <= year <= 2023:
+            rows_bea.append(
+                {
+                    "state": r["GeoName"],
+                    "fips": r["GeoFips"],
+                    "year": year,
+                    "gdp_millions": r["DataValue"].replace(",", ""),
+                }
+            )
 
-rows_boa= []
-for r in records:
-    fips_prefix = r["GeoFips"][:2]
-    year = int(r["TimePeriod"])
-    if fips_prefix in state_fips and 2000 <= year <= 2023:
-        rows_boa.append({
-            "state": r["GeoName"],
-            "fips": r["GeoFips"],
-            "year": year,
-            "gdp_millions": r["DataValue"]
-            })
+    if not rows_bea:
+        print("No BEA data returned")
+        log_fetch("bea", "no_data")
+        exit()
 
-bea_gdp = pd.DataFrame(rows_boa)
-print(bea_gdp.shape)
-print(bea_gdp.head())
+    # build dataframe
+    bea_gdp = pd.DataFrame(rows_bea)
+    bea_gdp["gdp_millions"] = pd.to_numeric(bea_gdp["gdp_millions"], errors="coerce")
 
-bea_gdp.to_sql("bea_gdp", engine, if_exists="replace", index=False)
-print("Saved!")
+    print(bea_gdp.shape)
+    print(bea_gdp.head())
+
+    # save
+    bea_gdp.to_sql("bea_gdp", engine, if_exists="replace", index=False)
+    log_fetch("bea", "success")
+    print("bea_gdp saved!")

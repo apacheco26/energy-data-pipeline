@@ -4,7 +4,7 @@ import io
 import os
 import json
 import time
-from db import engine, check_data_exists
+from db import engine, check_data_exists, is_fetched, log_fetch
 
 api_key_NREL = os.environ["NREL_API_KEY"]
 email_key = os.environ["EMAIL_KEY"]
@@ -30,43 +30,54 @@ states_coords = {
     }
 
 
-nsrdb_rows = []
 
 # If errors 
-completed_states = []
-
-for state, (lat, lon) in states_coords.items():
-    if state == "AK" or state in completed_states:
-        continue
+for state, (lat, lon) in states_coords.items(): 
+    state_rows = []
+    
     for year in range(2000, 2024):
-        print(f"  {state} — {year}")
-        url = (
-            f"https://developer.nrel.gov/api/nsrdb/v2/solar/nsrdb-GOES-aggregated-v4-0-0-download.csv"
-            f"?api_key={api_key_NREL}"
-            f"&wkt=POINT({lon} {lat})"
-            f"&names={year}"
-            f"&attributes=ghi,dni"
-            f"&leap_day=false"
-            f"&utc=false"
-            f"&interval=60"
-            f"&email={email_key}"
-            )
-        
+        if is_fetched("nsrdb", state=state, year=year):
+            print(f"  Skipping {state} {year} — already fetched")
+            continue
+    
+    print(f" {state} — {year}")
+    url = (
+        f"https://developer.nrel.gov/api/nsrdb/v2/solar/nsrdb-GOES-aggregated-v4-0-0-download.csv"
+        f"?api_key={api_key_NREL}"
+        f"&wkt=POINT({lon} {lat})"
+        f"&names={year}"
+        f"&attributes=ghi,dni"
+        f"&leap_day=false"
+        f"&utc=false"
+        f"&interval=60"
+        f"&email={email_key}"
+        )
+    max_retries = 3
+    
+    for attempt in range(max_retries):
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=30)
             lines = response.text.split("\n")
             data_start = next(i for i, l in enumerate(lines) if l.startswith("Year"))
             df = pd.read_csv(io.StringIO("\n".join(lines[data_start:])))
-            nsrdb_rows.append({
+            state_rows.append({
                 "state": state,
                 "year": year,
                 "avg_ghi": round(df["GHI"].mean(), 2),
                 "avg_dni": round(df["DNI"].mean(), 2)
             })
+            log_fetch("nsrdb", "success", state=state, year=year)
+            break
         except Exception as e:
-            print(f"  ERROR {state} {year}: {e}")
-        time.sleep(1)
+            if attempt == max_retries - 1:
+                print(f"  ERROR {state} {year}: {e}")   
+                log_fetch("nsrdb", "error", state=state, year=year)
+            else:
+                print(f"Retrying {state} {year} attempt {attempt + 2}")
+                time.sleep(2)
+        time.sleep(1)   
 
-df_nsrdb = pd.DataFrame(nsrdb_rows)
-df_nsrdb.to_sql("nsrdb_solar", engine, if_exists="replace", index=False)
-print(f"Done! {df_nsrdb.shape}")
+if state_rows:
+    df_nsrdb = pd.DataFrame(state_rows)
+    mode = "replace" if state == list(states_coords.keys())[0] else "append"
+    df_nsrdb.to_sql("nsrdb_solar", engine, if_exists=mode, index=False)
