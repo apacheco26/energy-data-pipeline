@@ -1,8 +1,10 @@
 import pandas as pd
+from dotenv import load_dotenv
+load_dotenv()
 from db import engine, is_fetched, log_fetch
 
 if is_fetched("owid"):
-    print("owid already fetched — skipping")
+    print("owid already fetched...skipping")
 else:
     url = "https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv"
     
@@ -25,6 +27,6 @@ else:
     df_owid = df[cols]
     
     # save to export to PostgreSQL on Railway
-    df_owid.to_sql("owid", engine, if_exists="replace", index=False)
+    df_owid.to_sql("owid", engine, if_exists="replace", index=False, chunksize=1000)
     log_fetch("owid", "success")
     print(f"owid saved! {df_owid.shape}")
