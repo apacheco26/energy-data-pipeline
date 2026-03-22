@@ -151,25 +151,25 @@ co2_url = (
 # added a if not statement to help with data being recreated after each issue
 
 print("Electricity produced by fuel type per year....")
-if not is_fetched("eia_generation"):
+if not is_fetched("Generation"):
     fetch_eia_data(gen_url, "Generation", "eia_generation")
 else:
     print("eia table already created")
 
 print("Retail sales")
-if not is_fetched("eia_sales"):
+if not is_fetched("Retail Sales"):
     fetch_eia_data(sales_url, "Retail Sales", "eia_sales")
 else:
     print("Retail sales table already created")
 
 print("Total Energy...")
-if not is_fetched("eia_total_energy"):
+if not is_fetched("Total Energy"):
     fetch_eia_data(total_url, "Total Energy", "eia_total_energy")
 else:
     print("total energy table already created")
 
 print("CO2 Emissions...")
-if not is_fetched("eia_co2_emissions"):
+if not is_fetched("CO2 Emissions"):
     fetch_eia_data(co2_url, "CO2 Emissions", "eia_co2_emissions")
 else:
     print("co2 emission table already created")

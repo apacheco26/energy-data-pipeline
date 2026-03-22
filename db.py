@@ -2,7 +2,6 @@ from sqlalchemy import create_engine, text
 import os
 #import json
 
-
 # sends the data fetched to Railway Postgres
 # more direct with line code to_sql()
 
