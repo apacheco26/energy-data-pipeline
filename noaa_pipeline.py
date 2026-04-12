@@ -58,17 +58,17 @@ def fetch_noaa_status(state_code, fips, datatype, start, end):
             )
         max_retries = 3
         for attempt in range(max_retries):
-            response = requests.get(url, headers=headers, timeout=30)
-            # handle errors during fetch (aka different datatypes)
             try:
+                response = requests.get(url, headers=headers, timeout=120)
                 data = response.json()
                 break
             except Exception as e:
                 if attempt == max_retries - 1:
-                    print(f"Non-JSON ERROR {state_code} {datatype} {start}: {e}")
+                    print(f"ERROR {state_code} {datatype} {start}: {e}")
                     log_fetch(source, "error", state=state_code, year=chunk_year)
                     return pd.DataFrame()
-                time.sleep(2)
+                print(f"Retrying {state_code} {datatype} {start} attempt {attempt + 2}")
+                time.sleep(5)
 
         if "results" not in data:
             print(f"No results for {state_code} {datatype} {start}")
