@@ -76,7 +76,7 @@ for state, (lat, lon) in states_coords.items():
                 print(f"Retrying {state} {year} attempt {attempt + 2}")
                 time.sleep(2)
         time.sleep(1)   
-
+1
 if state_rows:
     df_nsrdb = pd.DataFrame(state_rows)
     mode = "replace" if not check_data_exists("nsrdb_solar") else "append"

@@ -42,7 +42,8 @@ def fetch_noaa_status(state_code, fips, datatype, start, end):
     # NOAA limit
     limit = 1000
     chunk_year = int(start[:4])
-    
+    source = f"noaa_{datatype}"
+
     while True:
         url = (
             f"https://www.ncei.noaa.gov/cdo-web/api/v2/data"
@@ -65,13 +66,13 @@ def fetch_noaa_status(state_code, fips, datatype, start, end):
             except Exception as e:
                 if attempt == max_retries - 1:
                     print(f"Non-JSON ERROR {state_code} {datatype} {start}: {e}")
-                    log_fetch("noaa", "error", state=state_code, year=chunk_year)
+                    log_fetch(source, "error", state=state_code, year=chunk_year)
                     return pd.DataFrame()
                 time.sleep(2)
-                
+
         if "results" not in data:
             print(f"No results for {state_code} {datatype} {start}")
-            log_fetch("noaa", "no_data", state=state_code, year=chunk_year)
+            log_fetch(source, "no_data", state=state_code, year=chunk_year)
             break
         
         
@@ -99,20 +100,21 @@ for datatype in datatypes:
     print(f"\n{'='*50}")
     print(f"Fetching {datatype}...")
     print(f"{'='*50}")
+    source = f"noaa_{datatype}"
     for state_code, fips in states.items():
         for start, end in date_chunks:
             chunk_year = int(start[:4])
-            if is_fetched("noaa", state=state_code, year=chunk_year):
+            if is_fetched(source, state=state_code, year=chunk_year):
                 print(f"  Skipping {state_code} {datatype} {start[:4]} — already fetched")
                 continue
-            
+
             print(f" {state_code}|{datatype}|{start[:4]}-{end[:4]}")
             df = fetch_noaa_status(state_code, fips, datatype, start, end)
             if not df.empty:
-                
+
                 mode = "replace" if not check_data_exists("noaa_climate") else "append"
                 df.to_sql("noaa_climate", engine, if_exists=mode, index=False)
-                
-                log_fetch("noaa", "success", state=state_code, year=chunk_year)
+
+                log_fetch(source, "success", state=state_code, year=chunk_year)
 
 print("noaa_climate saved!")

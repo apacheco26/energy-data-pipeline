@@ -11,12 +11,12 @@ api_key = os.environ["EIA_API_KEY"]
 
 # edit to send to table in chunks 
 # data was getting too large to store in memory
-def fetch_eia_data(url, label, table_name, mode="replace", state = "ALL"):
+def fetch_eia_data(url, label, table_name, mode="replace", state="ALL", year=0):
     """Fetch and save in chunks to avoid memory issues"""
-    
+
     # limit tries
     max_retries = 3
-    retries = 0    
+    retries = 0
     offset = 0
     length = 5000
     first_chunk = True
@@ -29,9 +29,9 @@ def fetch_eia_data(url, label, table_name, mode="replace", state = "ALL"):
         if not response.text.strip():
             retries  += 1
             if retries >= max_retries:
-                log_fetch(label, "error", state=state)
+                log_fetch(label, "error", state=state, year=year)
                 return
-        
+
             time.sleep(2)
             continue
         try:
@@ -40,18 +40,18 @@ def fetch_eia_data(url, label, table_name, mode="replace", state = "ALL"):
         except Exception as e:
             retries += 1
             if retries >= max_retries:
-                log_fetch(label, "error", state=state)
+                log_fetch(label, "error", state=state, year=year)
                 return
             time.sleep(2)
             continue
 
-        # ran into issues before 
+        # ran into issues before
         #fixed them...just in case
         if "error" in data:
             print(f"Error on {label}: {data['error']}")
-            log_fetch(label, "error", state=state)
+            log_fetch(label, "error", state=state, year=year)
             break
-        
+
         rows = data["response"]["data"]
         total = int(data["response"]["total"])
 
@@ -68,8 +68,8 @@ def fetch_eia_data(url, label, table_name, mode="replace", state = "ALL"):
                 as_index=False
             )["nameplate-capacity-mw"].sum()
 
-        # when 5000 hit change to append 
-        # save after 
+        # when 5000 hit change to append
+        # save after
         in_or_out = mode if first_chunk else "append"
 
         # makes use of mode
@@ -80,7 +80,7 @@ def fetch_eia_data(url, label, table_name, mode="replace", state = "ALL"):
         print(f"{label} - saved {offset} of {total} rows")
 
         if offset >= total:
-            log_fetch(label , "success", state=state)
+            log_fetch(label, "success", state=state, year=year)
             break
 
         time.sleep(0.5)
@@ -99,18 +99,6 @@ gen_url = (
     f"&sort[0][direction]=asc"
     )
 
-
-# installed capacity by fuel type per year
-cap_url = (
-    f"https://api.eia.gov/v2/electricity/operating-generator-capacity/data"
-    f"?api_key={api_key}"
-    f"&data[]=nameplate-capacity-mw"
-    f"&frequency=monthly"
-    f"&start=2000"
-    f"&end=2023"
-    f"&sort[0][column]=period"
-    f"&sort[0][direction]=asc"
-    )
 
 # price,revenue,sales, customers per year
 sales_url = (
@@ -236,8 +224,67 @@ for dataset in url_info:
         fetch_eia_data(url, dataset["label"], table_name, mode=mode, state=state)
     
 print("capacity by fuel type per year")
-if not is_fetched("eia_capacity"):
-    fetch_eia_data(cap_url, "Capacity", "eia_capacity")
-else:
-    print("capacity table already created")
+for state in states:
+    state_rows = []
+
+    for year in range(2008, 2024):
+        if is_fetched("Capacity", state=state, year=year):
+            print(f"  Skipping Capacity {state} {year} — already fetched")
+            continue
+
+        print(f"  Capacity — {state} {year}")
+        url = (
+            f"https://api.eia.gov/v2/electricity/operating-generator-capacity/data"
+            f"?api_key={api_key}"
+            f"&data[]=nameplate-capacity-mw"
+            f"&facets[stateid][]={state}"
+            f"&frequency=monthly"
+            f"&start={year}"
+            f"&end={year}"
+            f"&sort[0][column]=period"
+            f"&sort[0][direction]=asc"
+        )
+
+        offset = 0
+        length = 5000
+        success = True
+        while True:
+            try:
+                response = requests.get(f"{url}&offset={offset}&length={length}", timeout=30)
+                data = response.json()
+            except Exception as e:
+                print(f"  ERROR {state} {year}: {e}")
+                log_fetch("Capacity", "error", state=state, year=year)
+                success = False
+                break
+
+            if "error" in data:
+                print(f"  Error {state} {year}: {data['error']}")
+                log_fetch("Capacity", "error", state=state, year=year)
+                success = False
+                break
+
+            rows = data["response"]["data"]
+            total = int(data["response"]["total"])
+            state_rows.extend(rows)
+            offset += len(rows)
+            if offset >= total:
+                break
+            time.sleep(0.5)
+
+        if success:
+            log_fetch("Capacity", "success", state=state, year=year)
+        time.sleep(0.5)
+
+    if state_rows:
+        df_cap = pd.DataFrame(state_rows)
+        df_cap["year"] = df_cap["period"].str[:4]
+        df_cap["nameplate-capacity-mw"] = pd.to_numeric(df_cap["nameplate-capacity-mw"], errors="coerce").fillna(0)
+        df_cap = df_cap.groupby(
+            ["year", "stateid", "stateName", "technology", "energy_source_code"],
+            as_index=False
+        )["nameplate-capacity-mw"].sum()
+        mode = "replace" if not check_data_exists("eia_capacity") else "append"
+        df_cap.to_sql("eia_capacity", engine, if_exists=mode, index=False)
+        print(f"  {state} capacity saved — {len(df_cap)} rows")
 
