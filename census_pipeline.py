@@ -13,7 +13,9 @@ else:
     # 2010s
     url1 = (
         f"https://api.census.gov/data/2019/pep/population"
-        f"?get=NAME,POP,DATE_DESC&for=state:*&key={state_pop_key}"
+        f"?get=NAME,POP,DATE_DESC&for=state:*"
+        f"&DATE_CODE=3,4,5,6,7,8,9,10,11,12"
+        f"&key={state_pop_key}"
     )
     # 2000s
     url2 = (
