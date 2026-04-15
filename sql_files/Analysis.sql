@@ -297,3 +297,42 @@ FROM international
 WHERE year = 2020
 AND country IN ('Canada', 'Mexico', 'United States')
 ORDER BY country;
+
+
+
+
+-- Grafana Ready Tables:
+CREATE OR REPLACE VIEW composite_alignment_grafana AS
+WITH per_capita AS (
+    SELECT
+        e.state,
+        e.year,
+        e.solar_mw * 1000000.0 / ec.population::numeric AS solar_mw_per_million,
+        e.wind_mw * 1000000.0 / ec.population::numeric AS wind_mw_per_million,
+        c.avg_ghi,
+        c.avg_wind_speed,
+        ec.gdp_per_capita
+    FROM energy e
+    JOIN climate c ON e.state = c.state AND e.year = c.year
+    JOIN state st ON e.state = st.abbrev
+    JOIN economic ec ON st.fips = ec.state_fip AND e.year = ec.year
+    WHERE c.avg_ghi > 0
+      AND c.avg_wind_speed > 0
+      AND ec.population > 0
+),
+ranked AS (
+    SELECT
+        state,
+        year,
+        gdp_per_capita,
+        PERCENT_RANK() OVER (PARTITION BY year ORDER BY solar_mw_per_million / avg_ghi) AS S,
+        PERCENT_RANK() OVER (PARTITION BY year ORDER BY wind_mw_per_million / avg_wind_speed) AS W
+    FROM per_capita
+)
+SELECT
+    make_date(year, 1, 1) AS time,
+    state,
+    year,
+    gdp_per_capita,
+    ROUND(((S + W) / 2)::numeric, 4) AS composite_alignment
+FROM ranked;
