@@ -1,0 +1,11 @@
+requests
+pandas
+sqlalchemy
+psycopg2-binary
+plotly
+dash
+flask
+gunicorn
+python-dotenv
+scipy
+numpy
