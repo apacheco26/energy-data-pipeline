@@ -890,7 +890,7 @@ def make_price_scatter_fig(year=None, theme="dark"):
 
 # computes dynamic footnote text for each reactive panel based on the active year
 def compute_footnotes(yr):
-    year_label = "all-years average" if yr is None else str(yr)
+    year_label = "all years average" if yr is None else str(yr)
 
     if yr is None:
         df_cr = (df_country_rank_all.groupby("country")["alignment_score"]
@@ -1067,7 +1067,7 @@ def compute_footnotes(yr):
 
     if yr is None:
         fn_table = (
-            f"Showing all-years average ({min(available_years)}\u2013{max(available_years)}). "
+            f"Showing all years average ({min(available_years)}\u2013{max(available_years)}). "
             f"Click any column header to sort. Use the filter row to search by state or metric."
         )
     else:
@@ -1208,7 +1208,7 @@ _lbl_style = {
     "marginBottom": "6px", "display": "block",
 }
 
-# precompute initial footnotes for the default all-years view
+# precompute initial footnotes for the default all years view
 _init_fn = compute_footnotes(None)
 
 app.layout = html.Div(
