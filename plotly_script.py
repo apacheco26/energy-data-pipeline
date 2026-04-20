@@ -1,19 +1,13 @@
 # standard library and third party imports
-import os
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import plotly.colors as pc
-from pathlib import Path
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from scipy import stats
 import dash
 from dash import dcc, html, Input, Output, dash_table
-
-# load environment variables from .env file
-load_dotenv(Path(__file__).parent / ".env")
 
 # shared color and theme constants
 SOLAR_COLOR = "#378ADD"
@@ -22,10 +16,7 @@ COAL_COLOR = "#8B6F47"
 TEMPLATE = "plotly_dark"
 BG_COLOR = "#111217"
 
-# validate database connection string before any queries
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL not set.")
+DATABASE_URL = "postgresql://postgres:OWtkbuZIeqeLtQHwCftsLuhJArTJCoVc@caboose.proxy.rlwy.net:49545/railway"
 
 engine = create_engine(DATABASE_URL)
 
