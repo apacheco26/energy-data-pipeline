@@ -140,6 +140,7 @@ All dashboard panels pull from these analytical layers. The KPI cards average so
 - submit to canves
 - Sub-Question 2: International Composite Alignment Over Time (2005-2020) graph has the spaghetti effect going on. Let's consider changing to a heatmap.
 - Check if all countries or states are linked to a color and doesn't change from graph to graph
+- consider moving the graphs around to make things flow together but maintaing the sections
   
 
 
