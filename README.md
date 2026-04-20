@@ -138,6 +138,7 @@ All dashboard panels pull from these analytical layers. The KPI cards average so
 - fix graphs when changing light and dark mode
 - check the foot notes to more generalize as filter of year was added
 - submit to canves
+- Sub-Question 2: International Composite Alignment Over Time (2005-2020) graph has the spaghetti effect going on. Let's consider changing to a heatmap.
   
 
 
