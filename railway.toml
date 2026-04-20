@@ -1,6 +1,5 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pip install -r requirements.txt"
 
 [deploy]
-startCommand = "python -m gunicorn plotly_script:server --bind 0.0.0.0:$PORT --timeout 120"
+startCommand = "gunicorn plotly_script:server --bind 0.0.0.0:$PORT --timeout 120"
