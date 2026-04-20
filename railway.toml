@@ -2,4 +2,4 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "gunicorn plotly_script:server --bind 0.0.0.0:$PORT --timeout 120"
+startCommand = "python -m gunicorn plotly_script:server --bind 0.0.0.0:$PORT --timeout 120"
