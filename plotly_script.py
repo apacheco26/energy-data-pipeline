@@ -5,15 +5,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import plotly.colors as pc
-from pathlib import Path
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from scipy import stats
 import dash
 from dash import dcc, html, Input, Output, dash_table
-
-# load environment variables from .env file
-load_dotenv(Path(__file__).parent / ".env")
 
 # shared color and theme constants
 SOLAR_COLOR = "#378ADD"
@@ -22,10 +17,7 @@ COAL_COLOR = "#8B6F47"
 TEMPLATE = "plotly_dark"
 BG_COLOR = "#111217"
 
-# validate database connection string before any queries
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL not set.")
+DATABASE_URL = "postgresql://postgres:OWtkbuZIeqeLtQHwCftsLuhJArTJCoVc@caboose.proxy.rlwy.net:49545/railway"
 
 engine = create_engine(DATABASE_URL)
 
@@ -158,6 +150,18 @@ STATE_COLORS = {
     s: _palette[i % len(_palette)]
     for i, s in enumerate(sorted(df_wind_scatter_all["state"].unique()))
 }
+
+# per-country color map for the international line chart
+_intl_palette = pc.qualitative.Plotly + pc.qualitative.D3 + pc.qualitative.G10
+INTL_COLORS = {
+    c: _intl_palette[i % len(_intl_palette)]
+    for i, c in enumerate(sorted(df_intl["country"].unique()))
+}
+# fixed distinctive colors for the three default-highlighted countries
+INTL_COLORS["United States"] = "#378ADD"
+INTL_COLORS["Germany"] = "#FFCA3A"
+INTL_COLORS["Mexico"] = "#6BCB77"
+INTL_HIGHLIGHT = {"United States", "Germany", "Mexico"}
 
 # year dropdown options shared across all panels
 year_options = (
@@ -890,7 +894,7 @@ def make_price_scatter_fig(year=None, theme="dark"):
 
 # computes dynamic footnote text for each reactive panel based on the active year
 def compute_footnotes(yr):
-    year_label = "all years average" if yr is None else str(yr)
+    year_label = "all-years average" if yr is None else str(yr)
 
     if yr is None:
         df_cr = (df_country_rank_all.groupby("country")["alignment_score"]
@@ -1067,7 +1071,7 @@ def compute_footnotes(yr):
 
     if yr is None:
         fn_table = (
-            f"Showing all years average ({min(available_years)}\u2013{max(available_years)}). "
+            f"Showing all-years average ({min(available_years)}\u2013{max(available_years)}). "
             f"Click any column header to sort. Use the filter row to search by state or metric."
         )
     else:
@@ -1208,7 +1212,7 @@ _lbl_style = {
     "marginBottom": "6px", "display": "block",
 }
 
-# precompute initial footnotes for the default all years view
+# precompute initial footnotes for the default all-years view
 _init_fn = compute_footnotes(None)
 
 app.layout = html.Div(
