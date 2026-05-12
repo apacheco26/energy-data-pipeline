@@ -7,7 +7,7 @@ import plotly.colors as pc
 from sqlalchemy import create_engine
 from scipy import stats
 import dash
-from dash import dcc, html, Input, Output, dash_table
+from dash import dcc, html, Input, Output, State, dash_table, no_update
 
 # shared color and theme constants
 SOLAR_COLOR = "#378ADD"
@@ -104,7 +104,7 @@ df_renewable = pd.read_sql("""
     order by renewable_share_pct desc
 """, engine)
 
-# full joined dataset for KPIs radar sankey and exploration panels
+# full joined dataset for KPIs radar and exploration panels
 df_master = pd.read_sql("""
     select ca.state, ca.year,
            round(ca.composite_alignment::numeric, 4) as composite_alignment,
@@ -337,14 +337,37 @@ def make_country_rank_fig(year=None, theme="dark"):
 
 
 # line chart of composite alignment per country over time
-def make_intl_fig(theme="dark"):
+_INTL_HIGHLIGHT = {"United States", "Germany", "Mexico"}
+_INTL_HIGHLIGHT_COLORS = {
+    "United States": "#1f77b4",
+    "Germany": "#2ca02c",
+    "Mexico": "#d62728",
+}
+
+
+def _hex_to_rgba(hex_color, alpha):
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha})"
+
+
+def make_intl_fig(theme="dark", hovered_country=None):
     fig = go.Figure()
     for country in df_intl["country"].unique():
         df_c = df_intl[df_intl["country"] == country]
+        highlighted = country in _INTL_HIGHLIGHT
+        is_hovered = country == hovered_country
+        color = _INTL_HIGHLIGHT_COLORS.get(country, "#888888")
+        show_fill = highlighted or is_hovered
         fig.add_trace(go.Scatter(
             x=df_c["year"], y=df_c["composite_alignment"],
             mode="lines+markers", name=country,
-            line=dict(width=2), marker=dict(size=4),
+            line=dict(width=2.5 if (highlighted or is_hovered) else 1.2,
+                      color=color if (highlighted or is_hovered) else "#555555"),
+            marker=dict(size=5 if (highlighted or is_hovered) else 3),
+            opacity=1.0 if (highlighted or is_hovered) else 0.2,
+            fill="tozeroy" if show_fill else "none",
+            fillcolor=_hex_to_rgba(color, 0.15) if show_fill else None,
         ))
     fig.update_layout(**base_layout(
         "Sub-Question 2: International Composite Alignment"
@@ -723,116 +746,6 @@ def make_hist_fig(year=None, theme="dark"):
     return fig
 
 
-# Sankey flowing from alignment tier to dominant energy source
-def make_sankey_fig(year=None, theme="dark"):
-    if year is None:
-        df = (
-            df_master
-            .groupby("state")[
-                ["composite_alignment", "solar_mw", "wind_mw", "coal_consumption_tons"]
-            ]
-            .mean().reset_index()
-        )
-        label = "All Years Avg"
-    else:
-        df = df_master[df_master["year"] == year].copy()
-        label = str(year)
-
-    # bin states into Low Medium High alignment tiers
-    df["tier"] = pd.cut(
-        df["composite_alignment"],
-        bins=[-np.inf, 0.35, 0.65, np.inf],
-        labels=["Low", "Medium", "High"]
-    ).astype(str)
-
-    # dominant source is whichever capacity column is largest
-    df["dominant"] = df[
-        ["solar_mw", "wind_mw", "coal_consumption_tons"]
-    ].idxmax(axis=1).map({
-        "solar_mw": "Solar", "wind_mw": "Wind", "coal_consumption_tons": "Coal"
-    })
-
-    tiers = ["High", "Medium", "Low"]
-    sources = ["Solar", "Wind", "Coal"]
-    nodes = tiers + sources
-    node_idx = {n: i for i, n in enumerate(nodes)}
-
-    links = (
-        df.groupby(["tier", "dominant"]).size().reset_index(name="count")
-    )
-    link_source = [node_idx[t] for t in links["tier"]]
-    link_target = [node_idx[d] for d in links["dominant"]]
-
-    fig = go.Figure(go.Sankey(
-        node=dict(
-            label=nodes,
-            color=["#73BF69", "#EAB839", "#EA6460",
-                   SOLAR_COLOR, WIND_COLOR, COAL_COLOR],
-            pad=15, thickness=20,
-            line=dict(color="#333", width=0.5),
-        ),
-        link=dict(
-            source=link_source, target=link_target,
-            value=links["count"].tolist(),
-            color="rgba(255,255,255,0.12)",
-        ),
-    ))
-    sank_bg = "#f5f6fa" if theme == "light" else BG_COLOR
-    sank_txt = "#333" if theme == "light" else "#eee"
-    fig.update_layout(
-        title=dict(
-            text=f"Alignment Tier: Dominant Energy Source ({label})",
-            font=dict(size=15)
-        ),
-        paper_bgcolor=sank_bg,
-        font=dict(color=sank_txt, size=12),
-        margin=dict(l=30, r=30, t=60, b=30),
-    )
-    return fig
-
-
-# grouped bar chart of solar wind and coal per million residents
-def make_energy_mix_fig(year=None, theme="dark"):
-    if year is None:
-        df = (
-            df_master
-            .groupby("state")[
-                ["solar_mw_per_million", "wind_mw_per_million", "coal_per_million"]
-            ]
-            .mean().reset_index()
-        )
-        label = "All Years Avg"
-    else:
-        df = df_master[df_master["year"] == year].copy()
-        label = str(year)
-
-    # sort by combined renewable capacity descending
-    df = df.sort_values(
-        by=["solar_mw_per_million", "wind_mw_per_million"], ascending=False
-    )
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        name="Solar MW/M", x=df["state"],
-        y=df["solar_mw_per_million"], marker_color=SOLAR_COLOR,
-    ))
-    fig.add_trace(go.Bar(
-        name="Wind MW/M", x=df["state"],
-        y=df["wind_mw_per_million"], marker_color=WIND_COLOR,
-    ))
-    fig.add_trace(go.Bar(
-        name="Coal tons/M", x=df["state"],
-        y=df["coal_per_million"], marker_color=COAL_COLOR,
-    ))
-    fig.update_layout(**base_layout(
-        f"Energy Mix by State: Per Million People ({label})",
-        xtitle="State", ytitle="Per Million People", theme=theme
-    ))
-    fig.update_layout(barmode="group", legend=dict(
-        orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5
-    ))
-    return fig
-
-
 # before and after bar chart using the precomputed shift view
 def make_coal_shift_fig(theme="dark"):
     df = df_coal_shift
@@ -984,50 +897,6 @@ def compute_footnotes(yr):
         f"A rightward shift over time indicates national improvement in alignment."
     )
 
-    if yr is None:
-        df_sk = (df_master.groupby("state")[
-            ["composite_alignment", "solar_mw", "wind_mw", "coal_consumption_tons"]]
-            .mean().reset_index())
-    else:
-        df_sk = df_master[df_master["year"] == yr].copy()
-    df_sk["tier"] = pd.cut(
-        df_sk["composite_alignment"], bins=[-np.inf, 0.35, 0.65, np.inf],
-        labels=["Low", "Medium", "High"]
-    ).astype(str)
-    df_sk["dominant"] = df_sk[
-        ["solar_mw", "wind_mw", "coal_consumption_tons"]
-    ].idxmax(axis=1).map(
-        {"solar_mw": "Solar", "wind_mw": "Wind", "coal_consumption_tons": "Coal"}
-    )
-    tier_counts = df_sk["tier"].value_counts()
-    high_dom = df_sk[df_sk["tier"] == "High"]["dominant"].mode()
-    low_dom = df_sk[df_sk["tier"] == "Low"]["dominant"].mode()
-    high_dom_str = high_dom.iloc[0] if len(high_dom) > 0 else "N/A"
-    low_dom_str = low_dom.iloc[0] if len(low_dom) > 0 else "N/A"
-    fn_sankey = (
-        f"Showing {year_label}. {tier_counts.get('High', 0)} states in High, "
-        f"{tier_counts.get('Medium', 0)} in Medium, {tier_counts.get('Low', 0)} in Low. "
-        f"High aligned states most often lead in {high_dom_str}; Low aligned states most "
-        f"often lead in {low_dom_str}. This reveals whether deployment follows or "
-        f"contradicts each state's climate alignment."
-    )
-
-    if yr is None:
-        df_em = (df_master.groupby("state")[
-            ["solar_mw_per_million", "wind_mw_per_million", "coal_per_million"]]
-            .mean().reset_index())
-    else:
-        df_em = df_master[df_master["year"] == yr].copy()
-    top_sol_em = df_em.loc[df_em["solar_mw_per_million"].idxmax(), "state"]
-    top_win_em = df_em.loc[df_em["wind_mw_per_million"].idxmax(), "state"]
-    top_coa_em = df_em.loc[df_em["coal_per_million"].idxmax(), "state"]
-    fn_energy_mix = (
-        f"Showing {year_label}. {top_sol_em} leads in solar per million people, "
-        f"{top_win_em} in wind, and {top_coa_em} in coal consumption per million. "
-        f"All metrics are population normalized for cross state comparability. "
-        f"States are sorted by combined renewable capacity descending."
-    )
-
     df_co2_f = _filter_master(yr)
     r_co2 = round(df_co2_f["renewable_share_pct"].corr(df_co2_f["co2_per_capita"]), 3)
     co2_interp = (
@@ -1068,7 +937,7 @@ def compute_footnotes(yr):
         )
 
     return (fn_country, fn_top, fn_wind, fn_solar, fn_map,
-            fn_hist, fn_sankey, fn_energy_mix, fn_co2, fn_price, fn_table)
+            fn_hist, fn_co2, fn_price, fn_table)
 
 
 # initialize Dash app and expose WSGI server for gunicorn
@@ -1272,6 +1141,97 @@ app.layout = html.Div(
             kpi_card("Avg CO\u2082 Emissions", "kpi-co2"),
         ], style={"display": "flex", "gap": "12px", "marginBottom": "32px"}),
 
+        # collapsible research objective and methodology summary
+        html.Details([
+            html.Summary("Research Objective & Methodology", style={
+                "fontSize": "14px", "fontWeight": "600", "color": "#aaa",
+                "cursor": "pointer", "padding": "10px 0", "letterSpacing": "0.4px",
+            }),
+            html.Div([
+                html.Div([
+                    html.H3("Objective", style={"fontSize": "13px", "color": SOLAR_COLOR,
+                                                "margin": "0 0 8px", "fontWeight": "600"}),
+                    html.P(
+                        "This project evaluates whether U.S. states invest in renewable energy "
+                        "proportionally to their climate suitability (solar radiation and wind "
+                        "resources), and compares state-level patterns to international trends. "
+                        "Data was ingested from six government sources \u2014 EIA, NOAA, NSRDB, BEA, "
+                        "U.S. Census, OWID, and PVGIS \u2014 into a PostgreSQL database on Railway via "
+                        "a modular Python pipeline, then transformed into six production tables "
+                        "(state, year, climate, energy, economic, international) covering "
+                        "2008\u20132023 for U.S. states and 2005\u20132020 internationally.",
+                        style={"fontSize": "12px", "color": "#bbb", "lineHeight": "1.7", "margin": "0 0 16px"},
+                    ),
+                    html.H3("Research Questions", style={"fontSize": "13px", "color": SOLAR_COLOR,
+                                                         "margin": "0 0 8px", "fontWeight": "600"}),
+                    html.Ul([
+                        html.Li("Primary: Do states invest in renewable energy proportional to their climate suitability?",
+                                style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
+                        html.Li("Sub-Q1: Does GDP per capita correlate with a state's renewable investment relative to its climate potential?",
+                                style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
+                        html.Li("Sub-Q2: How do U.S. state patterns compare to international trends?",
+                                style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
+                    ], style={"margin": "0 0 16px", "paddingLeft": "20px"}),
+                ], style={"flex": "1", "paddingRight": "24px"}),
+
+                html.Div([
+                    html.H3("Key Calculations", style={"fontSize": "13px", "color": SOLAR_COLOR,
+                                                       "margin": "0 0 8px", "fontWeight": "600"}),
+                    html.P("Composite Alignment Score (0\u20131)", style={
+                        "fontSize": "12px", "color": "#ddd", "fontWeight": "600", "margin": "0 0 4px"}),
+                    html.P(
+                        "Per-capita investment ratios (solar MW per million \u00f7 avg GHI; "
+                        "wind MW per million \u00f7 avg wind speed) are computed per state per year, "
+                        "then each ratio is percentile-ranked within its year using "
+                        "PERCENT_RANK() OVER (PARTITION BY year). The two ranks are averaged "
+                        "into a single 0\u20131 score, where 1 means investment far exceeds what "
+                        "climate resources alone would predict.",
+                        style={"fontSize": "12px", "color": "#bbb", "lineHeight": "1.7", "margin": "0 0 12px"},
+                    ),
+                    html.P("GDP Correlation (Sub-Q1)", style={
+                        "fontSize": "12px", "color": "#ddd", "fontWeight": "600", "margin": "0 0 4px"}),
+                    html.P(
+                        "PostgreSQL's native CORR() function is applied between gdp_per_capita "
+                        "and composite_alignment, producing one Pearson r per year (2008\u20132023).",
+                        style={"fontSize": "12px", "color": "#bbb", "lineHeight": "1.7", "margin": "0 0 12px"},
+                    ),
+                    html.P("International Alignment (Sub-Q2)", style={
+                        "fontSize": "12px", "color": "#ddd", "fontWeight": "600", "margin": "0 0 4px"}),
+                    html.P(
+                        "The same PERCENT_RANK() logic is applied to the international table "
+                        "(4,865 rows, 12 countries) using OWID renewable shares and PVGIS "
+                        "irradiance data, ranking each country's solar and wind investment "
+                        "relative to climate potential within each year.",
+                        style={"fontSize": "12px", "color": "#bbb", "lineHeight": "1.7", "margin": "0 0 16px"},
+                    ),
+                    html.H3("Key Findings", style={"fontSize": "13px", "color": SOLAR_COLOR,
+                                                   "margin": "0 0 8px", "fontWeight": "600"}),
+                    html.Ul([
+                        html.Li(
+                            "Wind aligned more strongly with climate suitability than solar "
+                            "(Pearson r 0.43\u20130.73 vs 0.22\u20130.59), though solar improved steadily after 2015.",
+                            style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
+                        html.Li(
+                            "Colorado led all states (score 0.776); Louisiana ranked last (0.036). "
+                            "Top performers cluster in the Mountain West and New England.",
+                            style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
+                        html.Li(
+                            "GDP correlation was weak and declining (r peaked ~0.32 in 2013, "
+                            "fell near zero by 2018), suggesting policy and climate drive "
+                            "investment more than economic capacity.",
+                            style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
+                        html.Li(
+                            "Germany ranked first internationally (score 0.932) despite below-average "
+                            "solar resources \u2014 pure policy effect. Mexico (0.094) and Brazil (0.122) "
+                            "chronically underperformed relative to their climate potential.",
+                            style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
+                    ], style={"margin": "0", "paddingLeft": "20px"}),
+                ], style={"flex": "1.2"}),
+            ], style={"display": "flex", "gap": "12px", "padding": "16px 20px",
+                      "background": "#1a1c23", "borderRadius": "6px", "marginTop": "8px"}),
+        ], style={"marginBottom": "28px", "borderBottom": "1px solid #2a2d3a",
+                  "paddingBottom": "20px"}),
+
         # sub question 1 GDP correlation
         section_header(
             "Sub-Question 1: Does GDP per capita correlate with a"
@@ -1337,24 +1297,8 @@ app.layout = html.Div(
                    "marginBottom": "20px", "lineHeight": "1.6"}
         ),
 
-        # histogram and sankey side by side
-        html.Div([
-            html.Div([
-                dcc.Graph(id="hist-graph", figure=make_hist_fig(),
-                          style={"height": "380px"}),
-                html.P(id="fn-hist", children=_init_fn[5], style=FN_HALF),
-            ], style={"flex": "1"}),
-            html.Div([
-                dcc.Graph(id="sankey-graph", figure=make_sankey_fig(),
-                          style={"height": "380px"}),
-                html.P(id="fn-sankey", children=_init_fn[6], style=FN_HALF),
-            ], style={"flex": "1"}),
-        ], style={"display": "flex", "gap": "12px", "marginBottom": "8px"}),
-
-        # energy mix grouped bar sorted by renewable capacity
-        dcc.Graph(id="energy-mix-graph", figure=make_energy_mix_fig(),
-                  style={"height": "420px"}),
-        html.P(id="fn-energy-mix", children=_init_fn[7], style=FN),
+        dcc.Graph(id="hist-graph", figure=make_hist_fig(), style={"height": "380px"}),
+        html.P(id="fn-hist", children=_init_fn[5], style=FN),
 
         # 2008 vs 2023 renewable share comparison bar chart
         dcc.Graph(id="coal-shift-graph", figure=make_coal_shift_fig(), style={"height": "420px"}),
@@ -1371,18 +1315,18 @@ app.layout = html.Div(
                 dcc.Graph(id="co2-scatter-graph",
                           figure=make_co2_scatter_fig(),
                           style={"height": "380px"}),
-                html.P(id="fn-co2", children=_init_fn[8], style=FN_HALF),
+                html.P(id="fn-co2", children=_init_fn[6], style=FN_HALF),
             ], style={"flex": "1"}),
             html.Div([
                 dcc.Graph(id="price-scatter-graph",
                           figure=make_price_scatter_fig(),
                           style={"height": "380px"}),
-                html.P(id="fn-price", children=_init_fn[9], style=FN_HALF),
+                html.P(id="fn-price", children=_init_fn[7], style=FN_HALF),
             ], style={"flex": "1"}),
         ], style={"display": "flex", "gap": "12px", "marginBottom": "8px"}),
 
         # sortable DataTable showing all key metrics per state
-        html.P(id="fn-table", children=_init_fn[10],
+        html.P(id="fn-table", children=_init_fn[8],
                style={**FN, "marginBottom": "8px"}),
         dash_table.DataTable(
             id="profile-table",
@@ -1502,6 +1446,144 @@ app.layout = html.Div(
             ], style={"flex": "1"}),
         ], style={"display": "flex", "gap": "12px"}),
 
+        # findings and future work summary
+        html.Hr(style={"borderColor": "#2a2d3a", "margin": "36px 0 16px"}),
+        html.Div([
+            html.H2("Findings & Future Work", style={
+                "fontSize": "16px", "fontWeight": "600", "color": "#ddd",
+                "marginBottom": "20px",
+            }),
+            html.Div([
+                html.Div([
+                    html.H3("What We Found", style={
+                        "fontSize": "13px", "color": SOLAR_COLOR,
+                        "fontWeight": "600", "margin": "0 0 10px",
+                    }),
+                    html.P(
+                        "States do invest in renewable energy in proportion to their climate "
+                        "suitability, but the strength of that relationship depends on the "
+                        "resource and has changed over time. Wind alignment was consistently "
+                        "stronger throughout 2008–2023 (Pearson r ranging from 0.43 to 0.73), "
+                        "while solar alignment started weak at r = 0.22 in 2008 and "
+                        "improved steadily to 0.59 by 2023 as utility-scale solar costs "
+                        "collapsed after 2015. Both trends moving upward over the full period "
+                        "indicates states are progressively getting better at deploying where "
+                        "their climate resources support it.",
+                        style={"fontSize": "12px", "color": "#bbb",
+                               "lineHeight": "1.7", "margin": "0 0 12px"},
+                    ),
+                    html.P(
+                        "At the state level, Colorado ranked first with a composite alignment "
+                        "score of 0.776 and Louisiana ranked last at 0.036 — a gap of 0.74 "
+                        "points reflecting fundamentally different trajectories. Top performers "
+                        "are concentrated in the Mountain West and New England; bottom performers "
+                        "cluster in the Southeast and Appalachian regions. Wyoming scored 0.693 "
+                        "despite being the largest coal-producing state, showing that wind "
+                        "investment and fossil fuel dependency can coexist.",
+                        style={"fontSize": "12px", "color": "#bbb",
+                               "lineHeight": "1.7", "margin": "0 0 12px"},
+                    ),
+                    html.P(
+                        "GDP per capita had only a weak and declining relationship with "
+                        "alignment. Pearson r peaked at roughly 0.32 around 2013–2014 before "
+                        "dropping to near zero in 2018 and stabilizing at 0.15–0.18 from 2019 "
+                        "onward. The 2018 inflection coincides with the period when renewable "
+                        "costs fell below conventional energy in most U.S. markets — once that "
+                        "happened, investment spread broadly regardless of economic capacity. "
+                        "Climate suitability and policy explain far more of the variation "
+                        "in alignment than wealth alone.",
+                        style={"fontSize": "12px", "color": "#bbb",
+                               "lineHeight": "1.7", "margin": "0 0 12px"},
+                    ),
+                    html.P(
+                        "Internationally, Germany ranked first in every year with a composite "
+                        "score of 0.932 despite having below-average solar irradiance — a "
+                        "result driven entirely by policy rather than climate advantage. Denmark "
+                        "ranked second at 0.733 and the United Kingdom third at 0.727. The "
+                        "United States tracked in the middle of the pack at 0.545 throughout "
+                        "the comparison period. Mexico (0.094) and Brazil (0.122) represent "
+                        "the starkest underperformance cases: both countries have exceptional "
+                        "solar resources, and Brazil has strong wind potential as well, yet "
+                        "neither translated that natural advantage into proportional investment "
+                        "over 2005–2020. The gap between Germany and Mexico makes it "
+                        "immediately clear that policy is the variable our current pipeline "
+                        "is missing.",
+                        style={"fontSize": "12px", "color": "#bbb",
+                               "lineHeight": "1.7", "margin": "0"},
+                    ),
+                ], style={"flex": "1", "paddingRight": "28px"}),
+
+                html.Div([
+                    html.H3("Building on This Work", style={
+                        "fontSize": "13px", "color": SOLAR_COLOR,
+                        "fontWeight": "600", "margin": "0 0 10px",
+                    }),
+                    html.P(
+                        "The most important next step is building a quantifiable policy metric. "
+                        "The results consistently show that countries like Germany and Denmark "
+                        "outperform their climate resources, and that GDP correlation has "
+                        "weakened significantly — both pointing to governmental action as the "
+                        "primary driver of investment patterns that the current pipeline cannot "
+                        "yet explain. A policy dimension incorporating feed-in tariff history, "
+                        "renewable portfolio standard stringency, carbon pricing levels, and "
+                        "public energy subsidy records would complete a three-dimensional "
+                        "framework of climate suitability, economic capacity, and governmental "
+                        "policy.",
+                        style={"fontSize": "12px", "color": "#bbb",
+                               "lineHeight": "1.7", "margin": "0 0 12px"},
+                    ),
+                    html.P(
+                        "The second priority is adding wind direction data with a sub-state "
+                        "spatial layer. Wind speed is a reasonable proxy for wind potential, "
+                        "but direction plays a significant role in where infrastructure can "
+                        "realistically be deployed. Incorporating it would require moving from "
+                        "state-level averages to a within-state geographic layer, creating a "
+                        "three-tier structure — sub-state regions, full state, international — "
+                        "that would make the alignment score considerably more accurate.",
+                        style={"fontSize": "12px", "color": "#bbb",
+                               "lineHeight": "1.7", "margin": "0 0 12px"},
+                    ),
+                    html.P("Additional concrete next steps include:", style={
+                        "fontSize": "12px", "color": "#ddd",
+                        "fontWeight": "600", "margin": "0 0 6px",
+                    }),
+                    html.Ul([
+                        html.Li(
+                            "Expand the international dataset beyond the current 12 countries "
+                            "to include underrepresented regions such as Sub-Saharan Africa "
+                            "and Southeast Asia.",
+                            style={"fontSize": "12px", "color": "#bbb",
+                                   "marginBottom": "5px", "lineHeight": "1.6"}),
+                        html.Li(
+                            "Incorporate more recent EIA and PVGIS data as it becomes available "
+                            "to extend the analysis beyond the current 2023 and 2020 ceilings.",
+                            style={"fontSize": "12px", "color": "#bbb",
+                                   "marginBottom": "5px", "lineHeight": "1.6"}),
+                        html.Li(
+                            "Build an automated refresh schedule on Railway rather than relying "
+                            "on manual redeployment triggers.",
+                            style={"fontSize": "12px", "color": "#bbb",
+                                   "marginBottom": "5px", "lineHeight": "1.6"}),
+                        html.Li(
+                            "Add a formal data quality monitoring layer that flags anomalies in "
+                            "incoming API responses before they reach staging tables.",
+                            style={"fontSize": "12px", "color": "#bbb",
+                                   "marginBottom": "5px", "lineHeight": "1.6"}),
+                        html.Li(
+                            "Alaska was excluded from all state-level analysis due to NSRDB "
+                            "coverage gaps and grid isolation. A future team could address this "
+                            "by sourcing an alternative satellite radiation dataset.",
+                            style={"fontSize": "12px", "color": "#bbb",
+                                   "lineHeight": "1.6"}),
+                    ], style={"margin": "0", "paddingLeft": "18px"}),
+                ], style={"flex": "1"}),
+            ], style={"display": "flex", "gap": "12px"}),
+        ], style={
+            "background": "#1a1c23", "borderRadius": "6px",
+            "padding": "20px 24px", "marginBottom": "28px",
+            "borderLeft": f"4px solid {WIND_COLOR}",
+        }),
+
         # data sources footer
         html.Hr(style={"borderColor": "#2a2d3a", "margin": "36px 0 16px"}),
         html.P(FN_SOURCES, style={
@@ -1511,7 +1593,7 @@ app.layout = html.Div(
 )
 
 
-# drives KPIs country ranking top bottom wind solar map histogram sankey mix CO2 price table and footnotes
+# drives KPIs country ranking top bottom wind solar map histogram CO2 price table and footnotes
 @app.callback(
     Output("kpi-solar", "children"),
     Output("kpi-wind", "children"),
@@ -1523,8 +1605,6 @@ app.layout = html.Div(
     Output("solar-graph", "figure"),
     Output("map-graph", "figure"),
     Output("hist-graph", "figure"),
-    Output("sankey-graph", "figure"),
-    Output("energy-mix-graph", "figure"),
     Output("co2-scatter-graph", "figure"),
     Output("price-scatter-graph", "figure"),
     Output("profile-table", "data"),
@@ -1534,8 +1614,6 @@ app.layout = html.Div(
     Output("fn-solar", "children"),
     Output("fn-map", "children"),
     Output("fn-hist", "children"),
-    Output("fn-sankey", "children"),
-    Output("fn-energy-mix", "children"),
     Output("fn-co2", "children"),
     Output("fn-price", "children"),
     Output("fn-table", "children"),
@@ -1555,8 +1633,6 @@ def update_global_year(year, theme):
         make_solar_fig(yr, theme=t),
         make_map_fig(yr, theme=t),
         make_hist_fig(yr, theme=t),
-        make_sankey_fig(yr, theme=t),
-        make_energy_mix_fig(yr, theme=t),
         make_co2_scatter_fig(yr, theme=t),
         make_price_scatter_fig(yr, theme=t),
         make_profile_data(yr),
@@ -1644,6 +1720,20 @@ def update_static_figs(theme):
         make_corr_fig(theme=t),
         make_coal_shift_fig(theme=t),
     )
+
+
+# fill the hovered country's area on the intl chart
+@app.callback(
+    Output("intl-graph", "figure", allow_duplicate=True),
+    Input("intl-graph", "hoverData"),
+    State("theme-store", "data"),
+    prevent_initial_call=True,
+)
+def intl_hover_fill(hover_data, theme):
+    hovered = None
+    if hover_data and hover_data.get("points"):
+        hovered = hover_data["points"][0].get("fullData", {}).get("name")
+    return make_intl_fig(theme=theme or "dark", hovered_country=hovered)
 
 
 # toggle theme store between dark and light on button click
