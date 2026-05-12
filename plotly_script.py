@@ -222,13 +222,12 @@ def base_layout(title, xtitle="", ytitle="", yrange=None, theme="dark"):
 
 
 # styled section divider with left border accent
-def section_header(title):
+def section_header(title, header_id):
     return html.Div([
-        html.H2(title, style={
-            "fontSize": "16px", "fontWeight": "600", "color": "#ddd"
-        })
-    ], style={
+        html.H2(title, style={"fontSize": "16px", "fontWeight": "600"})
+    ], id=header_id, style={
         "background": "#1a1c23",
+        "color": "#ddd",
         "borderLeft": f"4px solid {SOLAR_COLOR}",
         "padding": "10px 16px",
         "margin": "28px 0 12px",
@@ -237,9 +236,9 @@ def section_header(title):
 
 
 # single KPI card with a label and a reactive value element
-def kpi_card(label, value_id):
+def kpi_card(label, value_id, card_id, label_id):
     return html.Div([
-        html.P(label, style={
+        html.P(label, id=label_id, style={
             "fontSize": "11px", "color": "#888", "margin": "0",
             "textTransform": "uppercase", "letterSpacing": "0.6px",
         }),
@@ -247,7 +246,7 @@ def kpi_card(label, value_id):
             "fontSize": "26px", "fontWeight": "700",
             "color": "#eee", "margin": "6px 0 0", "lineHeight": "1.1",
         }),
-    ], style={
+    ], id=card_id, style={
         "background": "#1a1c23",
         "borderRadius": "6px",
         "padding": "16px 20px",
@@ -1138,10 +1137,10 @@ app.layout = html.Div(
 
         # four KPI summary cards
         html.Div([
-            kpi_card("Total Solar Capacity", "kpi-solar"),
-            kpi_card("Total Wind Capacity", "kpi-wind"),
-            kpi_card("Avg Renewable Share", "kpi-renewable"),
-            kpi_card("Avg CO\u2082 Emissions", "kpi-co2"),
+            kpi_card("Total Solar Capacity", "kpi-solar", "kpi-card-solar", "kpi-lbl-solar"),
+            kpi_card("Total Wind Capacity", "kpi-wind", "kpi-card-wind", "kpi-lbl-wind"),
+            kpi_card("Avg Renewable Share", "kpi-renewable", "kpi-card-renewable", "kpi-lbl-renewable"),
+            kpi_card("Avg CO\u2082 Emissions", "kpi-co2", "kpi-card-co2", "kpi-lbl-co2"),
         ], style={"display": "flex", "gap": "12px", "marginBottom": "32px"}),
 
         # collapsible research objective and methodology summary
@@ -1157,7 +1156,7 @@ app.layout = html.Div(
                     html.P(
                         "This project evaluates whether U.S. states invest in renewable energy "
                         "proportionally to their climate suitability (solar radiation and wind "
-                        "resources), and compares state-level patterns to international trends. "
+                        "resources), and compares state level patterns to international trends. "
                         "Data was ingested from six government sources \u2014 EIA, NOAA, NSRDB, BEA, "
                         "U.S. Census, OWID, and PVGIS \u2014 into a PostgreSQL database on Railway via "
                         "a modular Python pipeline, then transformed into six production tables "
@@ -1183,9 +1182,9 @@ app.layout = html.Div(
                     html.P("Composite Alignment Score (0\u20131)", style={
                         "fontSize": "12px", "color": "#ddd", "fontWeight": "600", "margin": "0 0 4px"}),
                     html.P(
-                        "Per-capita investment ratios (solar MW per million \u00f7 avg GHI; "
+                        "Per capita investment ratios (solar MW per million \u00f7 avg GHI; "
                         "wind MW per million \u00f7 avg wind speed) are computed per state per year, "
-                        "then each ratio is percentile-ranked within its year using "
+                        "then each ratio is percentile ranked within its year using "
                         "PERCENT_RANK() OVER (PARTITION BY year). The two ranks are averaged "
                         "into a single 0\u20131 score, where 1 means investment far exceeds what "
                         "climate resources alone would predict.",
@@ -1224,13 +1223,13 @@ app.layout = html.Div(
                             "investment more than economic capacity.",
                             style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
                         html.Li(
-                            "Germany ranked first internationally (score 0.932) despite below-average "
+                            "Germany ranked first internationally (score 0.932) despite below average "
                             "solar resources \u2014 pure policy effect. Mexico (0.094) and Brazil (0.122) "
                             "chronically underperformed relative to their climate potential.",
                             style={"fontSize": "12px", "color": "#bbb", "marginBottom": "4px"}),
                     ], style={"margin": "0", "paddingLeft": "20px"}),
                 ], style={"flex": "1.2"}),
-            ], style={"display": "flex", "gap": "12px", "padding": "16px 20px",
+            ], id="objective-content", style={"display": "flex", "gap": "12px", "padding": "16px 20px",
                       "background": "#1a1c23", "borderRadius": "6px", "marginTop": "8px"}),
         ], style={"marginBottom": "28px", "borderBottom": "1px solid #2a2d3a",
                   "paddingBottom": "20px"}),
@@ -1239,7 +1238,8 @@ app.layout = html.Div(
         section_header(
             "Sub-Question 1: Does GDP per capita correlate with a"
             " state\u2019s renewable energy investment relative to its"
-            " climate potential?"
+            " climate potential?",
+            "sh-q1"
         ),
         dcc.Graph(id="gdp-graph", figure=make_gdp_fig(), style={"height": "380px"}),
         html.P(FN_GDP, style=FN),
@@ -1247,7 +1247,8 @@ app.layout = html.Div(
         # sub question 2 international comparison
         section_header(
             "Sub-Question 2: How do U.S. state patterns compare"
-            " to international trends?"
+            " to international trends?",
+            "sh-q2"
         ),
         dcc.Graph(id="country-rank-graph",
                   figure=make_country_rank_fig(),
@@ -1259,7 +1260,8 @@ app.layout = html.Div(
         # primary research question panels
         section_header(
             "Primary Question: Do states invest in renewable energy"
-            " proportional to their climate suitability"
+            " proportional to their climate suitability",
+            "sh-primary"
         ),
         html.Div([
             html.Div([
@@ -1291,7 +1293,7 @@ app.layout = html.Div(
         html.P(id="fn-map", children=_init_fn[4], style=FN),
 
         # exploratory panels not tied to research questions
-        section_header("Explore the Data: State Energy Profiles"),
+        section_header("Explore the Data: State Energy Profiles", "sh-explore"),
         html.P(
             "These panels are for exploration and are not directly tied to "
             "the research questions. Use the year filter above to update all "
@@ -1356,7 +1358,7 @@ app.layout = html.Div(
         ),
 
         # radar chart and animated scatter with shared state dropdown
-        section_header("State Profiles: Multi-Dimensional Energy Signature"),
+        section_header("State Profiles: Multi-Dimensional Energy Signature", "sh-profiles"),
         html.Div([
             html.Label("Select up to 5 states to compare against the national average:",
                        style=_lbl_style),
@@ -1427,7 +1429,7 @@ app.layout = html.Div(
         ], style={"display": "flex", "gap": "12px", "marginBottom": "8px"}),
 
         # state alignment over time and renewable comparison
-        section_header("State Detail: Composite Alignment Over Time"),
+        section_header("State Detail: Composite Alignment Over Time", "sh-detail"),
         html.Div([
             html.Label("Select states:", style=_lbl_style),
             dcc.Dropdown(
@@ -1452,7 +1454,7 @@ app.layout = html.Div(
         # findings and future work summary
         html.Hr(style={"borderColor": "#2a2d3a", "margin": "36px 0 16px"}),
         html.Div([
-            html.H2("Findings & Future Work", style={
+            html.H2("Findings and Future Work", style={
                 "fontSize": "16px", "fontWeight": "600", "color": "#ddd",
                 "marginBottom": "20px",
             }),
@@ -1468,7 +1470,7 @@ app.layout = html.Div(
                         "resource and has changed over time. Wind alignment was consistently "
                         "stronger throughout 2008–2023 (Pearson r ranging from 0.43 to 0.73), "
                         "while solar alignment started weak at r = 0.22 in 2008 and "
-                        "improved steadily to 0.59 by 2023 as utility-scale solar costs "
+                        "improved steadily to 0.59 by 2023 as utility scale solar costs "
                         "collapsed after 2015. Both trends moving upward over the full period "
                         "indicates states are progressively getting better at deploying where "
                         "their climate resources support it.",
@@ -1481,7 +1483,7 @@ app.layout = html.Div(
                         "points reflecting fundamentally different trajectories. Top performers "
                         "are concentrated in the Mountain West and New England; bottom performers "
                         "cluster in the Southeast and Appalachian regions. Wyoming scored 0.693 "
-                        "despite being the largest coal-producing state, showing that wind "
+                        "despite being the largest coal producing state, showing that wind "
                         "investment and fossil fuel dependency can coexist.",
                         style={"fontSize": "12px", "color": "#bbb",
                                "lineHeight": "1.7", "margin": "0 0 12px"},
@@ -1500,7 +1502,7 @@ app.layout = html.Div(
                     ),
                     html.P(
                         "Internationally, Germany ranked first in every year with a composite "
-                        "score of 0.932 despite having below-average solar irradiance — a "
+                        "score of 0.932 despite having below average solar irradiance — a "
                         "result driven entirely by policy rather than climate advantage. Denmark "
                         "ranked second at 0.733 and the United Kingdom third at 0.727. The "
                         "United States tracked in the middle of the pack at 0.545 throughout "
@@ -1527,21 +1529,21 @@ app.layout = html.Div(
                         "outperform their climate resources, and that GDP correlation has "
                         "weakened significantly — both pointing to governmental action as the "
                         "primary driver of investment patterns that the current pipeline cannot "
-                        "yet explain. A policy dimension incorporating feed-in tariff history, "
+                        "yet explain. A policy dimension incorporating feed in tariff history, "
                         "renewable portfolio standard stringency, carbon pricing levels, and "
-                        "public energy subsidy records would complete a three-dimensional "
+                        "public energy subsidy records would complete a three dimensional "
                         "framework of climate suitability, economic capacity, and governmental "
                         "policy.",
                         style={"fontSize": "12px", "color": "#bbb",
                                "lineHeight": "1.7", "margin": "0 0 12px"},
                     ),
                     html.P(
-                        "The second priority is adding wind direction data with a sub-state "
+                        "The second priority is adding wind direction data with a sub state "
                         "spatial layer. Wind speed is a reasonable proxy for wind potential, "
                         "but direction plays a significant role in where infrastructure can "
                         "realistically be deployed. Incorporating it would require moving from "
-                        "state-level averages to a within-state geographic layer, creating a "
-                        "three-tier structure — sub-state regions, full state, international — "
+                        "state level averages to a within state geographic layer, creating a "
+                        "three tier structure — sub state regions, full state, international — "
                         "that would make the alignment score considerably more accurate.",
                         style={"fontSize": "12px", "color": "#bbb",
                                "lineHeight": "1.7", "margin": "0 0 12px"},
@@ -1573,7 +1575,7 @@ app.layout = html.Div(
                             style={"fontSize": "12px", "color": "#bbb",
                                    "marginBottom": "5px", "lineHeight": "1.6"}),
                         html.Li(
-                            "Alaska was excluded from all state-level analysis due to NSRDB "
+                            "Alaska was excluded from all state level analysis due to NSRDB "
                             "coverage gaps and grid isolation. A future team could address this "
                             "by sourcing an alternative satellite radiation dataset.",
                             style={"fontSize": "12px", "color": "#bbb",
@@ -1581,7 +1583,7 @@ app.layout = html.Div(
                     ], style={"margin": "0", "paddingLeft": "18px"}),
                 ], style={"flex": "1"}),
             ], style={"display": "flex", "gap": "12px"}),
-        ], style={
+        ], id="findings-section", style={
             "background": "#1a1c23", "borderRadius": "6px",
             "padding": "20px 24px", "marginBottom": "28px",
             "borderLeft": f"4px solid {WIND_COLOR}",
@@ -1759,23 +1761,122 @@ def toggle_theme(n):
     })
 
 
-# updates the main wrapper background and text color when theme changes
+# updates backgrounds, card colors, section headers, and table when theme changes
 @app.callback(
     Output("main-wrapper", "style"),
+    Output("kpi-card-solar", "style"),
+    Output("kpi-card-wind", "style"),
+    Output("kpi-card-renewable", "style"),
+    Output("kpi-card-co2", "style"),
+    Output("kpi-lbl-solar", "style"),
+    Output("kpi-lbl-wind", "style"),
+    Output("kpi-lbl-renewable", "style"),
+    Output("kpi-lbl-co2", "style"),
+    Output("kpi-solar", "style"),
+    Output("kpi-wind", "style"),
+    Output("kpi-renewable", "style"),
+    Output("kpi-co2", "style"),
+    Output("sh-q1", "style"),
+    Output("sh-q2", "style"),
+    Output("sh-primary", "style"),
+    Output("sh-explore", "style"),
+    Output("sh-profiles", "style"),
+    Output("sh-detail", "style"),
+    Output("objective-content", "style"),
+    Output("findings-section", "style"),
+    Output("profile-table", "style_cell"),
+    Output("profile-table", "style_header"),
+    Output("profile-table", "style_data_conditional"),
     Input("theme-store", "data"),
 )
 def update_wrapper_style(theme):
-    if theme == "light":
-        return {
-            "background": "#f5f6fa", "color": "#222",
-            "fontFamily": "Segoe UI, Arial, sans-serif",
-            "padding": "24px",
-        }
-    return {
-        "background": BG_COLOR, "color": "#eee",
-        "fontFamily": "Segoe UI, Arial, sans-serif",
-        "padding": "24px",
-    }
+    light = theme == "light"
+
+    wrapper = (
+        {"background": "#f5f6fa", "color": "#222",
+         "fontFamily": "Segoe UI, Arial, sans-serif", "padding": "24px"}
+        if light else
+        {"background": BG_COLOR, "color": "#eee",
+         "fontFamily": "Segoe UI, Arial, sans-serif", "padding": "24px"}
+    )
+    card = (
+        {"background": "#ffffff", "borderRadius": "6px", "padding": "16px 20px",
+         "flex": "1", "borderTop": f"3px solid {SOLAR_COLOR}",
+         "boxShadow": "0 1px 4px rgba(0,0,0,0.08)"}
+        if light else
+        {"background": "#1a1c23", "borderRadius": "6px", "padding": "16px 20px",
+         "flex": "1", "borderTop": f"3px solid {SOLAR_COLOR}"}
+    )
+    lbl = (
+        {"fontSize": "11px", "color": "#555", "margin": "0",
+         "textTransform": "uppercase", "letterSpacing": "0.6px"}
+        if light else
+        {"fontSize": "11px", "color": "#888", "margin": "0",
+         "textTransform": "uppercase", "letterSpacing": "0.6px"}
+    )
+    val = (
+        {"fontSize": "26px", "fontWeight": "700", "color": "#111",
+         "margin": "6px 0 0", "lineHeight": "1.1"}
+        if light else
+        {"fontSize": "26px", "fontWeight": "700", "color": "#eee",
+         "margin": "6px 0 0", "lineHeight": "1.1"}
+    )
+    sh = (
+        {"background": "#e4e7ef", "color": "#333",
+         "borderLeft": f"4px solid {SOLAR_COLOR}",
+         "padding": "10px 16px", "margin": "28px 0 12px",
+         "borderRadius": "0 4px 4px 0"}
+        if light else
+        {"background": "#1a1c23", "color": "#ddd",
+         "borderLeft": f"4px solid {SOLAR_COLOR}",
+         "padding": "10px 16px", "margin": "28px 0 12px",
+         "borderRadius": "0 4px 4px 0"}
+    )
+    obj = (
+        {"display": "flex", "gap": "12px", "padding": "16px 20px",
+         "background": "#eef0f5", "borderRadius": "6px", "marginTop": "8px"}
+        if light else
+        {"display": "flex", "gap": "12px", "padding": "16px 20px",
+         "background": "#1a1c23", "borderRadius": "6px", "marginTop": "8px"}
+    )
+    findings = (
+        {"background": "#eef0f5", "borderRadius": "6px",
+         "padding": "20px 24px", "marginBottom": "28px",
+         "borderLeft": f"4px solid {WIND_COLOR}"}
+        if light else
+        {"background": "#1a1c23", "borderRadius": "6px",
+         "padding": "20px 24px", "marginBottom": "28px",
+         "borderLeft": f"4px solid {WIND_COLOR}"}
+    )
+    tbl_cell = (
+        {"backgroundColor": "#ffffff", "color": "#222",
+         "border": "1px solid #dde1ea", "fontSize": "12px",
+         "padding": "8px", "textAlign": "center"}
+        if light else
+        {"backgroundColor": "#1a1c23", "color": "#eee",
+         "border": "1px solid #2a2d3a", "fontSize": "12px",
+         "padding": "8px", "textAlign": "center"}
+    )
+    tbl_hdr = (
+        {"backgroundColor": "#e4e7ef", "color": "#333",
+         "fontWeight": "600", "border": "1px solid #ccc"}
+        if light else
+        {"backgroundColor": "#0f1117", "color": "#ccc",
+         "fontWeight": "600", "border": "1px solid #2a2d3a"}
+    )
+    tbl_cond = (
+        [{"if": {"row_index": "odd"}, "backgroundColor": "#f5f6fa"}]
+        if light else
+        [{"if": {"row_index": "odd"}, "backgroundColor": "#161820"}]
+    )
+
+    return (wrapper,
+            card, card, card, card,
+            lbl, lbl, lbl, lbl,
+            val, val, val, val,
+            sh, sh, sh, sh, sh, sh,
+            obj, findings,
+            tbl_cell, tbl_hdr, tbl_cond)
 
 
 if __name__ == "__main__":
