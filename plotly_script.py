@@ -139,6 +139,24 @@ df_coal_shift = pd.read_sql("""
 # release DB connections after all queries complete
 engine.dispose()
 
+STATE_NAMES = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+    "CA": "California", "CO": "Colorado", "CT": "Connecticut",
+    "DE": "Delaware", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii",
+    "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
+    "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine",
+    "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan",
+    "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri",
+    "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
+    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico",
+    "NY": "New York", "NC": "North Carolina", "ND": "North Dakota",
+    "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania",
+    "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota",
+    "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
+    "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
+    "WI": "Wisconsin", "WY": "Wyoming",
+}
+
 # sorted state list for the state dropdown
 all_states = sorted(df_all_states["state"].unique())
 available_years = sorted(df_composite_all["year"].unique().tolist())
@@ -738,7 +756,7 @@ def make_hist_fig(year=None, theme="dark"):
     ))
     fig.add_trace(go.Scatter(
         x=xr, y=kde_y, mode="lines",
-        line=dict(color="#f1f1f8", width=2),
+        line=dict(color="#222222", width=2),
         name="KDE", showlegend=False,
     ))
     fig.update_layout(**base_layout(
@@ -750,25 +768,28 @@ def make_hist_fig(year=None, theme="dark"):
 
 # before and after bar chart using the precomputed shift view
 def make_coal_shift_fig(theme="dark"):
-    df = df_coal_shift
+    df = df_coal_shift.copy()
+    df["state_name"] = df["state"].map(STATE_NAMES).fillna(df["state"])
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        name="2008", x=df["state"],
-        y=df["renewable_share_2008"],
-        marker_color="#EA6460",
+        name="2008", y=df["state_name"],
+        x=df["renewable_share_2008"],
+        orientation="h", marker_color="#EA6460",
     ))
     fig.add_trace(go.Bar(
-        name="2023", x=df["state"],
-        y=df["renewable_share_2023"],
-        marker_color="#73BF69",
+        name="2023", y=df["state_name"],
+        x=df["renewable_share_2023"],
+        orientation="h", marker_color="#73BF69",
     ))
     fig.update_layout(**base_layout(
         "Coal to Renewable Shift: 2008 vs 2023 Renewable Share",
-        xtitle="State (sorted by change)", ytitle="Renewable Share (%)", theme=theme
+        xtitle="Renewable Share (%)", ytitle="State (sorted by change)", theme=theme
     ))
-    fig.update_layout(barmode="group", legend=dict(
-        orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5
-    ))
+    fig.update_layout(
+        barmode="group",
+        height=900,
+        legend=dict(orientation="h", yanchor="top", y=-0.05, xanchor="center", x=0.5),
+    )
     return fig
 
 
@@ -823,9 +844,9 @@ def compute_footnotes(yr):
         df_tb = df_composite_all[df_composite_all["year"] == yr][
             ["state", "composite_alignment"]].copy()
     df_tb = df_tb.sort_values("composite_alignment", ascending=False).reset_index(drop=True)
-    top_st = df_tb.iloc[0]["state"]
+    top_st = STATE_NAMES.get(df_tb.iloc[0]["state"], df_tb.iloc[0]["state"])
     top_st_score = round(df_tb.iloc[0]["composite_alignment"], 3)
-    bot_st = df_tb.iloc[-1]["state"]
+    bot_st = STATE_NAMES.get(df_tb.iloc[-1]["state"], df_tb.iloc[-1]["state"])
     bot_st_score = round(df_tb.iloc[-1]["composite_alignment"], 3)
     avg_st = round(df_tb["composite_alignment"].mean(), 3)
     fn_top = (
@@ -842,7 +863,7 @@ def compute_footnotes(yr):
     else:
         df_w = df_wind_scatter_all[df_wind_scatter_all["year"] == yr].copy()
     r_wind = round(df_w["avg_wind_speed"].corr(df_w["wind_mw_per_million"]), 3)
-    top_wind = df_w.loc[df_w["wind_mw_per_million"].idxmax(), "state"]
+    top_wind = STATE_NAMES.get(df_w.loc[df_w["wind_mw_per_million"].idxmax(), "state"], df_w.loc[df_w["wind_mw_per_million"].idxmax(), "state"])
     fn_wind = (
         f"Showing {year_label}. Pearson r = {r_wind} between average wind speed and "
         f"wind capacity per million residents. {top_wind} leads in per capita wind installation. "
@@ -857,7 +878,7 @@ def compute_footnotes(yr):
     else:
         df_sv = df_solar_scatter_all[df_solar_scatter_all["year"] == yr].copy()
     r_solar = round(df_sv["avg_ghi"].corr(df_sv["solar_mw_per_million"]), 3)
-    top_solar = df_sv.loc[df_sv["solar_mw_per_million"].idxmax(), "state"]
+    top_solar = STATE_NAMES.get(df_sv.loc[df_sv["solar_mw_per_million"].idxmax(), "state"], df_sv.loc[df_sv["solar_mw_per_million"].idxmax(), "state"])
     fn_solar = (
         f"Showing {year_label}. Pearson r = {r_solar} between average GHI and "
         f"solar capacity per million residents. {top_solar} leads in per capita solar installation. "
@@ -873,8 +894,8 @@ def compute_footnotes(yr):
     high_n = int((df_m["composite_alignment"] > 0.65).sum())
     med_n = int(((df_m["composite_alignment"] >= 0.35) & (df_m["composite_alignment"] <= 0.65)).sum())
     low_n = int((df_m["composite_alignment"] < 0.35).sum())
-    best_st = df_m.loc[df_m["composite_alignment"].idxmax(), "state"]
-    worst_st = df_m.loc[df_m["composite_alignment"].idxmin(), "state"]
+    best_st = STATE_NAMES.get(df_m.loc[df_m["composite_alignment"].idxmax(), "state"], df_m.loc[df_m["composite_alignment"].idxmax(), "state"])
+    worst_st = STATE_NAMES.get(df_m.loc[df_m["composite_alignment"].idxmin(), "state"], df_m.loc[df_m["composite_alignment"].idxmin(), "state"])
     fn_map = (
         f"Showing {year_label}. {high_n} states in the High tier (above 0.65), "
         f"{med_n} in Medium (0.35 to 0.65), {low_n} in Low (below 0.35). "
@@ -1132,17 +1153,7 @@ app.layout = html.Div(
                     style=_dd_style,
                 ),
             ], style={"maxWidth": "300px"}),
-            html.Div([
-                html.Button(
-                    "Dark Mode", id="theme-toggle", n_clicks=0,
-                    style={
-                        "background": "#ffffff", "color": "#333",
-                        "border": "1px solid #bbb", "borderRadius": "4px",
-                        "padding": "6px 16px", "cursor": "pointer",
-                        "fontSize": "13px", "marginTop": "22px",
-                    },
-                ),
-            ]),
+            html.Div(id="theme-toggle", style={"display": "none"}),
         ], style={"display": "flex", "gap": "24px", "alignItems": "flex-start",
                   "marginBottom": "20px"}),
 
@@ -1168,8 +1179,8 @@ app.layout = html.Div(
                         "This project evaluates whether U.S. states invest in renewable energy "
                         "proportionally to their climate suitability (solar radiation and wind "
                         "resources), and compares state level patterns to international trends. "
-                        "Data was ingested from six government sources \u2014 EIA, NOAA, NSRDB, BEA, "
-                        "U.S. Census, OWID, and PVGIS \u2014 into a PostgreSQL database on Railway via "
+                        "Data was ingested from six government sources (EIA, NOAA, NSRDB, BEA, "
+                        "U.S. Census, OWID, and PVGIS) into a PostgreSQL database on Railway via "
                         "a modular Python pipeline, then transformed into six production tables "
                         "(state, year, climate, energy, economic, international) covering "
                         "2008\u20132023 for U.S. states and 2005\u20132020 internationally.",
@@ -1300,6 +1311,7 @@ app.layout = html.Div(
             ], style={"flex": "1"}),
         ], style={"display": "flex", "gap": "12px", "marginBottom": "8px"}),
         dcc.Graph(id="map-graph", figure=make_map_fig(theme="light"),
+                  config={"scrollZoom": False},
                   style={"height": "480px"}),
         html.P(id="fn-map", children=_init_fn[4], style=FN),
 
@@ -1317,7 +1329,7 @@ app.layout = html.Div(
         html.P(id="fn-hist", children=_init_fn[5], style=FN),
 
         # 2008 vs 2023 renewable share comparison bar chart
-        dcc.Graph(id="coal-shift-graph", figure=make_coal_shift_fig(theme="light"), style={"height": "420px"}),
+        dcc.Graph(id="coal-shift-graph", figure=make_coal_shift_fig(theme="light"), style={"height": "900px"}),
         html.P(
             "Two bars per state comparing renewable share in 2008 vs 2023, sorted "
             "by the size of the change. States with the largest green bars relative "
@@ -1490,7 +1502,7 @@ app.layout = html.Div(
                     ),
                     html.P(
                         "At the state level, Colorado ranked first with a composite alignment "
-                        "score of 0.776 and Louisiana ranked last at 0.036 — a gap of 0.74 "
+                        "score of 0.776 and Louisiana ranked last at 0.036, a gap of 0.74 "
                         "points reflecting fundamentally different trajectories. Top performers "
                         "are concentrated in the Mountain West and New England; bottom performers "
                         "cluster in the Southeast and Appalachian regions. Wyoming scored 0.693 "
@@ -1504,7 +1516,7 @@ app.layout = html.Div(
                         "alignment. Pearson r peaked at roughly 0.32 around 2013–2014 before "
                         "dropping to near zero in 2018 and stabilizing at 0.15–0.18 from 2019 "
                         "onward. The 2018 inflection coincides with the period when renewable "
-                        "costs fell below conventional energy in most U.S. markets — once that "
+                        "costs fell below conventional energy in most U.S. markets. Once that "
                         "happened, investment spread broadly regardless of economic capacity. "
                         "Climate suitability and policy explain far more of the variation "
                         "in alignment than wealth alone.",
@@ -1513,7 +1525,7 @@ app.layout = html.Div(
                     ),
                     html.P(
                         "Internationally, Germany ranked first in every year with a composite "
-                        "score of 0.932 despite having below average solar irradiance — a "
+                        "score of 0.932 despite having below average solar irradiance, a "
                         "result driven entirely by policy rather than climate advantage. Denmark "
                         "ranked second at 0.733 and the United Kingdom third at 0.727. The "
                         "United States tracked in the middle of the pack at 0.545 throughout "
@@ -1538,7 +1550,7 @@ app.layout = html.Div(
                         "The most important next step is building a quantifiable policy metric. "
                         "The results consistently show that countries like Germany and Denmark "
                         "outperform their climate resources, and that GDP correlation has "
-                        "weakened significantly — both pointing to governmental action as the "
+                        "weakened significantly, both pointing to governmental action as the "
                         "primary driver of investment patterns that the current pipeline cannot "
                         "yet explain. A policy dimension incorporating feed in tariff history, "
                         "renewable portfolio standard stringency, carbon pricing levels, and "
@@ -1554,7 +1566,7 @@ app.layout = html.Div(
                         "but direction plays a significant role in where infrastructure can "
                         "realistically be deployed. Incorporating it would require moving from "
                         "state level averages to a within state geographic layer, creating a "
-                        "three tier structure — sub state regions, full state, international — "
+                        "three tier structure of sub state regions, full state, and international "
                         "that would make the alignment score considerably more accurate.",
                         style={"fontSize": "12px", "color": "#bbb",
                                "lineHeight": "1.7", "margin": "0 0 12px"},
@@ -1566,7 +1578,7 @@ app.layout = html.Div(
                     html.Ul([
                         html.Li(
                             "Expand the international dataset beyond the current 12 countries "
-                            "to include underrepresented regions such as Sub-Saharan Africa "
+                            "to include underrepresented regions such as Sub Saharan Africa "
                             "and Southeast Asia.",
                             style={"fontSize": "12px", "color": "#bbb",
                                    "marginBottom": "5px", "lineHeight": "1.6"}),
