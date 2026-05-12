@@ -7,7 +7,7 @@ import plotly.colors as pc
 from sqlalchemy import create_engine
 from scipy import stats
 import dash
-from dash import dcc, html, Input, Output, State, dash_table, no_update
+from dash import dcc, html, Input, Output, dash_table
 
 # shared color and theme constants
 SOLAR_COLOR = "#378ADD"
@@ -149,6 +149,18 @@ STATE_COLORS = {
     s: _palette[i % len(_palette)]
     for i, s in enumerate(sorted(df_wind_scatter_all["state"].unique()))
 }
+
+# per-country color map for the international line chart
+_intl_palette = pc.qualitative.Plotly + pc.qualitative.D3 + pc.qualitative.G10
+INTL_COLORS = {
+    c: _intl_palette[i % len(_intl_palette)]
+    for i, c in enumerate(sorted(df_intl["country"].unique()))
+}
+# fixed distinctive colors for the three default-highlighted countries
+INTL_COLORS["United States"] = "#378ADD"
+INTL_COLORS["Germany"] = "#FFCA3A"
+INTL_COLORS["Mexico"] = "#6BCB77"
+INTL_HIGHLIGHT = {"United States", "Germany", "Mexico"}
 
 # year dropdown options shared across all panels
 year_options = (
@@ -337,37 +349,28 @@ def make_country_rank_fig(year=None, theme="dark"):
 
 
 # line chart of composite alignment per country over time
-_INTL_HIGHLIGHT = {"United States", "Germany", "Mexico"}
-_INTL_HIGHLIGHT_COLORS = {
-    "United States": "#1f77b4",
-    "Germany": "#2ca02c",
-    "Mexico": "#d62728",
-}
-
-
-def _hex_to_rgba(hex_color, alpha):
-    h = hex_color.lstrip("#")
-    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-    return f"rgba({r},{g},{b},{alpha})"
-
-
-def make_intl_fig(theme="dark", hovered_country=None):
+def make_intl_fig(theme="dark", extra_highlight=None):
+    highlighted = INTL_HIGHLIGHT | ({extra_highlight} if extra_highlight else set())
     fig = go.Figure()
     for country in df_intl["country"].unique():
         df_c = df_intl[df_intl["country"] == country]
-        highlighted = country in _INTL_HIGHLIGHT
-        is_hovered = country == hovered_country
-        color = _INTL_HIGHLIGHT_COLORS.get(country, "#888888")
-        show_fill = highlighted or is_hovered
+        is_default = country in INTL_HIGHLIGHT
+        is_active = country in highlighted
+        if is_active:
+            color = INTL_COLORS.get(country, "#aaaaaa")
+            width = 3 if is_default else 2
+            opacity = 1.0
+        else:
+            color = "#888888"
+            width = 1
+            opacity = 0.25
         fig.add_trace(go.Scatter(
             x=df_c["year"], y=df_c["composite_alignment"],
             mode="lines+markers", name=country,
-            line=dict(width=2.5 if (highlighted or is_hovered) else 1.2,
-                      color=color if (highlighted or is_hovered) else "#555555"),
-            marker=dict(size=5 if (highlighted or is_hovered) else 3),
-            opacity=1.0 if (highlighted or is_hovered) else 0.2,
-            fill="tozeroy" if show_fill else "none",
-            fillcolor=_hex_to_rgba(color, 0.15) if show_fill else None,
+            customdata=[country] * len(df_c),
+            line=dict(color=color, width=width),
+            marker=dict(size=5 if is_default else 4, color=color),
+            opacity=opacity,
         ))
     fig.update_layout(**base_layout(
         "Sub-Question 2: International Composite Alignment"
@@ -1707,7 +1710,6 @@ def update_renewable_graph(selected_states, theme):
 # redraws static figures when theme changes
 @app.callback(
     Output("gdp-graph", "figure"),
-    Output("intl-graph", "figure"),
     Output("corr-graph", "figure"),
     Output("coal-shift-graph", "figure"),
     Input("theme-store", "data"),
@@ -1716,24 +1718,22 @@ def update_static_figs(theme):
     t = theme or "dark"
     return (
         make_gdp_fig(theme=t),
-        make_intl_fig(theme=t),
         make_corr_fig(theme=t),
         make_coal_shift_fig(theme=t),
     )
 
 
-# fill the hovered country's area on the intl chart
+# colors US/Germany/Mexico by default; reveals all country colors on hover
 @app.callback(
-    Output("intl-graph", "figure", allow_duplicate=True),
+    Output("intl-graph", "figure"),
     Input("intl-graph", "hoverData"),
-    State("theme-store", "data"),
-    prevent_initial_call=True,
+    Input("theme-store", "data"),
 )
-def intl_hover_fill(hover_data, theme):
-    hovered = None
+def update_intl_graph(hover_data, theme):
+    extra = None
     if hover_data and hover_data.get("points"):
-        hovered = hover_data["points"][0].get("fullData", {}).get("name")
-    return make_intl_fig(theme=theme or "dark", hovered_country=hovered)
+        extra = hover_data["points"][0].get("customdata")
+    return make_intl_fig(theme=theme or "dark", extra_highlight=extra)
 
 
 # toggle theme store between dark and light on button click
