@@ -18,25 +18,21 @@ An end-to-end data engineering project that ingests climate, energy, and economi
 
 ---
 
-**Abstract**
+## Abstract
 In our project we wanted to investigate whether U.S. states invest in renewable energy proportional to their climate suitability, and how those patterns compare to international trends. Using a fully automated Python data pipeline ingesting data from the EIA, NOAA, NREL, NSRDB, BEA, U.S. Census Bureau, OWID, and PVGIS into a PostgreSQL database hosted on Railway, we constructed a composite alignment score that percentile ranks per capita solar and wind investment relative to average GHI and wind speed within each year. This metric enabled size-neutral comparisons across all 50 states and a set of international countries from 2008 to 2023.
 
 Renewable investment aligned more strongly with wind potential than solar potential, with wind showing a Pearson r of 0.43 to 0.73 across measured years and solar improving from 0.22 to 0.59 over the same period. At the state level, Colorado ranked as the strongest overall performer with a composite alignment score of 0.776, while Louisiana ranked lowest at 0.036, with top performers concentrated in the Mountain West and New England. GDP per capita showed only a weak and declining correlation with alignment, falling from r = 0.32 in 2008 to near zero by 2018, indicating that policy environment and climate suitability drive investment patterns more than economic capacity. Internationally, Germany and Denmark consistently overperformed relative to their climate resources due to strong policy frameworks, while Mexico and Brazil remained chronic underperformers despite substantial solar potential, and the United States placed in the middle throughout the comparison period.
 
 These findings suggest that climate suitability is a necessary but not sufficient condition for renewable investment, and that governmental policy commitment likely plays a central role in distinguishing overperformers from underperformers across both the domestic and international analyses.
 
-**Conclusions**
-I have enough from both files. Here is the conclusion:
-
----
-
-**Conclusion**
+## Conclusion
 
 The core analytical contribution was the composite alignment score, computed by dividing per capita solar MW by average GHI and per capita wind MW by average wind speed, then applying `PERCENT_RANK() OVER (PARTITION BY year)` to each ratio independently before averaging the two percentile ranks into a single 0 to 1 score. This design choice made the metric temporally stable, meaning a state's score in 2010 and 2023 reflected its relative standing within that year's national distribution rather than being distorted by the overall growth of the renewable sector over time.
 
 The results confirmed that climate suitability partially explains investment but does not determine it. Wind alignment was consistently moderate to strong across all years, with Pearson r ranging from 0.43 to 0.73, while solar alignment improved from a weak r of 0.22 to a moderate r of 0.59 by the end of the study period. The GDP per capita correlation, computed via PostgreSQL's native `CORR()` function across state level averages, returned an overall r of 0.29 and declined sharply from 0.32 in 2008 to near zero around 2018, indicating that economic capacity became a progressively weaker predictor of alignment as the renewable sector matured. At the state level, Colorado posted the highest composite alignment score across the full study window at 0.776, while Louisiana ranked lowest at 0.036. In the 2023 snapshot, New Mexico led all states at 0.8438, with Maine and Texas tied at 0.8229, demonstrating that strong alignment was achievable across very different economic and geographic profiles. Internationally, the same percentile ranking logic applied to OWID and PVGIS data showed Germany and Denmark consistently overperforming their climate resources while Mexico and Brazil remained chronic underperformers, a contrast that points directly to the variable the pipeline currently cannot measure: national energy policy.
 
 Taken together, these findings suggest that renewable investment is shaped by some combination of climate potential, market conditions, and governmental commitment, and that no single factor fully accounts for the variation observed. The declining role of GDP and the persistent gap between climatically similar states and countries that diverge in alignment both point to policy as the explanatory variable that remains outside the model. The logical next step for this pipeline is the integration of a quantifiable policy index, whether derived from legislative records, carbon pricing data, or renewable portfolio standards, that would allow the composite alignment score to be decomposed into what a state or country could invest based on its climate and what it actually chose to invest based on institutional action. That distinction is the analytical question this project was ultimately built to ask.
+---
 
 ## Project Structure
 
