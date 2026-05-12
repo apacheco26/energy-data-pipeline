@@ -19,7 +19,7 @@ An end-to-end data engineering project that ingests climate, energy, and economi
 ---
 
 ## Abstract
-In our project we wanted to investigate whether U.S. states invest in renewable energy proportional to their climate suitability, and how those patterns compare to international trends. Using a fully automated Python data pipeline ingesting data from the EIA, NOAA, NREL, NSRDB, BEA, U.S. Census Bureau, OWID, and PVGIS into a PostgreSQL database hosted on Railway, we constructed a composite alignment score that percentile ranks per capita solar and wind investment relative to average GHI and wind speed within each year. This metric enabled size-neutral comparisons across all 50 states and a set of international countries from 2008 to 2023.
+In our project we wanted to investigate whether U.S. states invest in renewable energy proportional to their climate suitability, and how those patterns compare to international trends. Using a fully automated Python data pipeline ingesting data from the EIA, NOAA, NREL, NSRDB, BEA, U.S. Census Bureau, OWID, and PVGIS into a PostgreSQL database hosted on Railway, we constructed a composite alignment score that percentile ranks per capita solar and wind investment relative to average GHI and wind speed within each year. This metric enabled size neutral comparisons across all 50 states and a set of international countries from 2008 to 2023.
 
 Renewable investment aligned more strongly with wind potential than solar potential, with wind showing a Pearson r of 0.43 to 0.73 across measured years and solar improving from 0.22 to 0.59 over the same period. At the state level, Colorado ranked as the strongest overall performer with a composite alignment score of 0.776, while Louisiana ranked lowest at 0.036, with top performers concentrated in the Mountain West and New England. GDP per capita showed only a weak and declining correlation with alignment, falling from r = 0.32 in 2008 to near zero by 2018, indicating that policy environment and climate suitability drive investment patterns more than economic capacity. Internationally, Germany and Denmark consistently overperformed relative to their climate resources due to strong policy frameworks, while Mexico and Brazil remained chronic underperformers despite substantial solar potential, and the United States placed in the middle throughout the comparison period.
 
@@ -93,7 +93,7 @@ Raw staging data is promoted to six production tables through a series of SQL tr
 | `economic` | 1,150 | GDP per capita and population per state per year |
 | `international` | 4,865 | Solar/wind investment and climate potential for 12 countries (2005–2020) |
 
-Key transformation steps: casting types, standardizing state identifiers to `CHAR(2)`, removing non-state entries (territories, regional aggregates), preserving `NULL` for missing values, pivoting EIA long-format data into a wide state-year table, and aggregating NOAA station-level observations to state-level averages.
+Key transformation steps: casting types, standardizing state identifiers to `CHAR(2)`, removing non-state entries (territories, regional aggregates), preserving `NULL` for missing values, pivoting EIA long format data into a wide state year table, and aggregating NOAA station level observations to state level averages.
 
 ### Stage 4: Analytical Layer
 On top of the production tables, derived views and tables power the dashboard:
@@ -104,7 +104,7 @@ On top of the production tables, derived views and tables power the dashboard:
 - **`coal_to_renewable_shift`** Precomputed view comparing renewable share per state between 2008 and 2023.
 
 ### Stage 5: Dashboard (`plotly_script.py`)
-All production and analytical tables are queried at startup into pandas DataFrames. The Dash app renders interactive charts — choropleth map, scatter plots, bar charts, line charts, histogram, radar chart — all reactive to a global year filter and a light/dark theme toggle. Gunicorn serves the app via the Railway-hosted PostgreSQL database.
+All production and analytical tables are queried at startup into pandas DataFrames. The Dash app renders interactive charts choropleth map, scatter plots, bar charts, line charts, histogram, radar chart all reactive to a global year filter and a light/dark theme toggle. Gunicorn serves the app via the Railway hosted PostgreSQL database.
 
 ---
 
