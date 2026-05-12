@@ -952,8 +952,19 @@ app.index_string = (
     "<!DOCTYPE html><html><head>"
     "{%metas%}<title>{%title%}</title>{%favicon%}{%css%}"
     "<style>"
-    "html,body{margin:0;padding:0;background:" + BG_COLOR + ";}"
+    "html,body{margin:0;padding:0;background:#f5f6fa;}"
     "*{box-sizing:border-box;}"
+    "#main-wrapper.light-mode #objective-content p,"
+    "#main-wrapper.light-mode #objective-content li{"
+    "color:#333 !important;}"
+    "#main-wrapper.light-mode #findings-section p,"
+    "#main-wrapper.light-mode #findings-section li{"
+    "color:#333 !important;}"
+    "#main-wrapper.light-mode #findings-section h2{"
+    "color:#222 !important;}"
+    "#main-wrapper.light-mode details summary{"
+    "color:#444 !important;}"
+    "#main-wrapper.light-mode label{color:#444 !important;}"
     "</style>"
     "</head><body>"
     "{%app_entry%}"
@@ -1064,9 +1075,9 @@ FN_SOURCES = (
 )
 
 # reusable dropdown and label styles
-_dd_style = {"background": "#1a1c23", "color": "#111"}
+_dd_style = {"background": "#ffffff", "color": "#222"}
 _lbl_style = {
-    "color": "#aaa", "fontSize": "13px",
+    "color": "#555", "fontSize": "13px",
     "marginBottom": "6px", "display": "block",
 }
 
@@ -1081,7 +1092,7 @@ app.layout = html.Div(
         "padding": "24px",
     },
     children=[
-        dcc.Store(id="theme-store", data="dark"),
+        dcc.Store(id="theme-store", data="light"),
 
         # dashboard title and description
         html.Div([
@@ -1123,10 +1134,10 @@ app.layout = html.Div(
             ], style={"maxWidth": "300px"}),
             html.Div([
                 html.Button(
-                    "Light Mode", id="theme-toggle", n_clicks=0,
+                    "Dark Mode", id="theme-toggle", n_clicks=0,
                     style={
-                        "background": "#2a2d3a", "color": "#eee",
-                        "border": "1px solid #555", "borderRadius": "4px",
+                        "background": "#ffffff", "color": "#333",
+                        "border": "1px solid #bbb", "borderRadius": "4px",
                         "padding": "6px 16px", "cursor": "pointer",
                         "fontSize": "13px", "marginTop": "22px",
                     },
@@ -1241,7 +1252,7 @@ app.layout = html.Div(
             " climate potential?",
             "sh-q1"
         ),
-        dcc.Graph(id="gdp-graph", figure=make_gdp_fig(), style={"height": "380px"}),
+        dcc.Graph(id="gdp-graph", figure=make_gdp_fig(theme="light"), style={"height": "380px"}),
         html.P(FN_GDP, style=FN),
 
         # sub question 2 international comparison
@@ -1251,10 +1262,10 @@ app.layout = html.Div(
             "sh-q2"
         ),
         dcc.Graph(id="country-rank-graph",
-                  figure=make_country_rank_fig(),
+                  figure=make_country_rank_fig(theme="light"),
                   style={"height": "380px"}),
         html.P(id="fn-country", children=_init_fn[0], style=FN),
-        dcc.Graph(id="intl-graph", figure=make_intl_fig(), style={"height": "420px"}),
+        dcc.Graph(id="intl-graph", figure=make_intl_fig(theme="light"), style={"height": "420px"}),
         html.P(FN_INTL, style=FN),
 
         # primary research question panels
@@ -1265,30 +1276,30 @@ app.layout = html.Div(
         ),
         html.Div([
             html.Div([
-                dcc.Graph(id="corr-graph", figure=make_corr_fig(),
+                dcc.Graph(id="corr-graph", figure=make_corr_fig(theme="light"),
                           style={"height": "380px"}),
                 html.P(FN_CORR, style=FN_HALF),
             ], style={"flex": "1"}),
             html.Div([
                 dcc.Graph(id="top-bottom-graph",
-                          figure=make_top_bottom_fig(),
+                          figure=make_top_bottom_fig(theme="light"),
                           style={"height": "450px"}),
                 html.P(id="fn-top", children=_init_fn[1], style=FN_HALF),
             ], style={"flex": "1"}),
         ], style={"display": "flex", "gap": "12px", "marginBottom": "8px"}),
         html.Div([
             html.Div([
-                dcc.Graph(id="wind-graph", figure=make_wind_fig(),
+                dcc.Graph(id="wind-graph", figure=make_wind_fig(theme="light"),
                           style={"height": "380px"}),
                 html.P(id="fn-wind", children=_init_fn[2], style=FN_HALF),
             ], style={"flex": "1"}),
             html.Div([
-                dcc.Graph(id="solar-graph", figure=make_solar_fig(),
+                dcc.Graph(id="solar-graph", figure=make_solar_fig(theme="light"),
                           style={"height": "380px"}),
                 html.P(id="fn-solar", children=_init_fn[3], style=FN_HALF),
             ], style={"flex": "1"}),
         ], style={"display": "flex", "gap": "12px", "marginBottom": "8px"}),
-        dcc.Graph(id="map-graph", figure=make_map_fig(),
+        dcc.Graph(id="map-graph", figure=make_map_fig(theme="light"),
                   style={"height": "480px"}),
         html.P(id="fn-map", children=_init_fn[4], style=FN),
 
@@ -1302,11 +1313,11 @@ app.layout = html.Div(
                    "marginBottom": "20px", "lineHeight": "1.6"}
         ),
 
-        dcc.Graph(id="hist-graph", figure=make_hist_fig(), style={"height": "380px"}),
+        dcc.Graph(id="hist-graph", figure=make_hist_fig(theme="light"), style={"height": "380px"}),
         html.P(id="fn-hist", children=_init_fn[5], style=FN),
 
         # 2008 vs 2023 renewable share comparison bar chart
-        dcc.Graph(id="coal-shift-graph", figure=make_coal_shift_fig(), style={"height": "420px"}),
+        dcc.Graph(id="coal-shift-graph", figure=make_coal_shift_fig(theme="light"), style={"height": "420px"}),
         html.P(
             "Two bars per state comparing renewable share in 2008 vs 2023, sorted "
             "by the size of the change. States with the largest green bars relative "
@@ -1373,7 +1384,7 @@ app.layout = html.Div(
         html.Div([
             html.Div([
                 dcc.Graph(id="radar-graph",
-                          figure=make_radar_fig([]),
+                          figure=make_radar_fig([], theme="light"),
                           style={"height": "440px"}),
                 html.P(
                     "Radar chart showing five normalized metrics per state: renewable share "
@@ -1417,7 +1428,7 @@ app.layout = html.Div(
                     ),
                 ], style={"marginBottom": "8px"}),
                 dcc.Graph(id="anim-scatter-graph",
-                          figure=make_scatter_anim_fig(),
+                          figure=make_scatter_anim_fig(theme="light"),
                           style={"height": "400px"}),
                 html.P(
                     "Static view shows all years average (or selected year). "
@@ -1627,7 +1638,7 @@ app.layout = html.Div(
 )
 def update_global_year(year, theme):
     yr = None if year == "overall" else int(year)
-    t = theme or "dark"
+    t = theme or "light"
     solar, wind, renew, co2 = compute_kpis(yr)
     fns = compute_footnotes(yr)
     return (
@@ -1654,7 +1665,7 @@ def update_global_year(year, theme):
 )
 def update_radar(year, states, theme):
     yr = None if year == "overall" else int(year)
-    return make_radar_fig((states or [])[:5], yr, theme=theme or "dark")
+    return make_radar_fig((states or [])[:5], yr, theme=theme or "light")
 
 
 # updates animated scatter when year resource or animate mode changes
@@ -1668,7 +1679,7 @@ def update_radar(year, states, theme):
 def update_anim_scatter(year, resource, animate_val, theme):
     animate = animate_val == "animated"
     yr = None if (year == "overall" or animate) else int(year)
-    return make_scatter_anim_fig(resource or "wind", animate, yr, theme=theme or "dark")
+    return make_scatter_anim_fig(resource or "wind", animate, yr, theme=theme or "light")
 
 
 # line chart of composite alignment for selected states over time
@@ -1678,7 +1689,7 @@ def update_anim_scatter(year, resource, animate_val, theme):
     Input("theme-store", "data"),
 )
 def update_state_graph(selected_states, theme):
-    t = theme or "dark"
+    t = theme or "light"
     fig = go.Figure()
     if not selected_states:
         return fig
@@ -1706,7 +1717,7 @@ def update_state_graph(selected_states, theme):
     Input("theme-store", "data"),
 )
 def update_renewable_graph(selected_states, theme):
-    return make_renewable_fig(selected_states, theme=theme or "dark")
+    return make_renewable_fig(selected_states, theme=theme or "light")
 
 
 # redraws static figures when theme changes
@@ -1717,7 +1728,7 @@ def update_renewable_graph(selected_states, theme):
     Input("theme-store", "data"),
 )
 def update_static_figs(theme):
-    t = theme or "dark"
+    t = theme or "light"
     return (
         make_gdp_fig(theme=t),
         make_corr_fig(theme=t),
@@ -1735,7 +1746,7 @@ def update_intl_graph(hover_data, theme):
     extra = None
     if hover_data and hover_data.get("points"):
         extra = hover_data["points"][0].get("customdata")
-    return make_intl_fig(theme=theme or "dark", extra_highlight=extra)
+    return make_intl_fig(theme=theme or "light", extra_highlight=extra)
 
 
 # toggle theme store between dark and light on button click
@@ -1747,15 +1758,15 @@ def update_intl_graph(hover_data, theme):
 )
 def toggle_theme(n):
     if n and n % 2 == 1:
-        return ("light", "Dark Mode", {
-            "background": "#ffffff", "color": "#333",
-            "border": "1px solid #bbb", "borderRadius": "4px",
+        return ("dark", "Light Mode", {
+            "background": "#2a2d3a", "color": "#eee",
+            "border": "1px solid #555", "borderRadius": "4px",
             "padding": "6px 16px", "cursor": "pointer",
             "fontSize": "13px", "marginTop": "22px",
         })
-    return ("dark", "Light Mode", {
-        "background": "#2a2d3a", "color": "#eee",
-        "border": "1px solid #555", "borderRadius": "4px",
+    return ("light", "Dark Mode", {
+        "background": "#ffffff", "color": "#333",
+        "border": "1px solid #bbb", "borderRadius": "4px",
         "padding": "6px 16px", "cursor": "pointer",
         "fontSize": "13px", "marginTop": "22px",
     })
@@ -1764,6 +1775,7 @@ def toggle_theme(n):
 # updates backgrounds, card colors, section headers, and table when theme changes
 @app.callback(
     Output("main-wrapper", "style"),
+    Output("main-wrapper", "className"),
     Output("kpi-card-solar", "style"),
     Output("kpi-card-wind", "style"),
     Output("kpi-card-renewable", "style"),
@@ -1870,7 +1882,8 @@ def update_wrapper_style(theme):
         [{"if": {"row_index": "odd"}, "backgroundColor": "#161820"}]
     )
 
-    return (wrapper,
+    cls = "light-mode" if light else ""
+    return (wrapper, cls,
             card, card, card, card,
             lbl, lbl, lbl, lbl,
             val, val, val, val,
